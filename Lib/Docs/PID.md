@@ -60,7 +60,8 @@ GM6020 当前策略：
 - 从故障恢复或重新使能时必须调用 `PidReset()`。
 
 ## 测试
-
+详情见测试文档
+主机测试在项目的根目录运行
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
 ```

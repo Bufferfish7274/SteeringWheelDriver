@@ -6,8 +6,7 @@
 VESC 内部已经完成速度闭环，分控板只负责给出目标。
 
 ## 协议
-
-### 控制帧
+VESC 的CAN通信ID是状态码+控制器ID的形式。状态码位于高21位，控制器ID为低8位。本项目控制帧使用模式3下发，状态帧按照模式9下发。关于通信协议，详情参考[Github官方文档](https://github.com/vedderb/bldc/blob/master/documentation/comm_can.md)
 
 ```text
 ExtId = (CAN_PACKET_SET_RPM << 8) | controller_id
@@ -57,7 +56,7 @@ ExtId = (CAN_PACKET_STATUS << 8) | controller_id
 本驱动不承担该换算。
 
 ## 测试
-
+主机测试可在项目根目录运行
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Tests\VESC\host\run.ps1
 ```
