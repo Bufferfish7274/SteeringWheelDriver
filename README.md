@@ -3,7 +3,7 @@
 基于 STM32F405RGT6 的单舵轮控制固件。分控板通过 CAN2 接收主控目标，
 通过 CAN1 控制 GM6020 舵向电机和 VESC 轮向驱动，并输出 UART 调试遥测。
 
-1.0 设计思路、功能范围和版本边界见
+1.1 设计思路、功能范围和版本边界见
 [Docs/Design-v1.0.md](Docs/Design-v1.0.md)。
 
 ## 系统结构
@@ -14,6 +14,7 @@
   ▼
 舵轮分控板
   ├─ MasterCan：协议解码、控制可用、链路超时
+  ├─ SteeringWheelApp：安全门控、AngleOpt、斜坡和驱动调度
   ├─ AngleOpt：选择最短物理等效舵向，并决定 ERPM 符号
   ├─ SetpointRamp：限制 GM6020 目标角速度和角加速度
   ├─ GM6020：舵向位置环
@@ -35,34 +36,60 @@
 两路 CAN 均为经典 CAN，波特率 `1 Mbps`。总线两端应各有 `120 Ω`
 终端电阻，所有节点必须共地，且 CAN_H/CAN_L 不得反接。
 
-## 固定配置
+## 运行配置
 
-| 项目             | 当前值                   |
-| -------------- | --------------------- |
-| 主控轮号           | 1                     |
-| GM6020 ID      | 1                     |
-| GM6020 机械零位原始角 | 1386                  |
-| GM6020 角度方向    | `+1`                  |
-| GM6020 电压方向    | `+1`                  |
-| GM6020 传动比     | 1.0                   |
-| VESC 控制器 ID    | 67                    |
-| 主控角度映射         | `sign=+1`、`offset=0°` |
+| 项目 | 当前默认值 |
+|---|---|
+| 主控轮号 | 1 |
+| GM6020 ID | 1 |
+| GM6020 机械零位原始角 | 1386 |
+| GM6020 角度/电压方向 | `+1` / `+1` |
+| GM6020 传动比 | 1.0 |
+| VESC 控制器 ID | 67 |
+| 主控角度映射 | `sign=+1`、`offset=0°` |
+| 位置 PID | `20 / 2 / 0.1` |
+| 速度 PID | `70 / 50 / 0` |
+| 最大角速度/角加速度 | `790 °/s` / `4000 °/s²` |
 
-配置集中在 [main.c](Core/Src/main.c) 的 `USER CODE BEGIN PD` 区域。
-修改机械零位或设备 ID 时，应优先修改这些宏，不要在业务函数中写死。
+编译期默认值集中在 [app_config.c](App/app_config.c) 的
+`AppConfig_LoadDefaults()`。运行中可通过 Keil Watch 修改
+`g_tuning_config`，递增 `g_tuning_apply_seq` 后由 1 kHz 控制节拍校验并应用。
+
+`g_tuning_apply_status` 和 `g_tuning_applied_seq` 分别表示最近一次应用结果
+和实际生效的请求序号。参数只保存在 RAM，掉电后恢复编译期默认值；接受一组
+参数后应将其写回 `AppConfig_LoadDefaults()`。
+
+PID、限幅、斜坡和超时可在运行中应用，默认保留 PID 积分状态。设备 ID、
+零位、方向和传动比属于结构性参数，只能在整轮失能时应用；此时会重新初始化
+驱动并重配 CAN2 过滤，随后必须收到新目标。
+
+## 正式与台架构建
+
+工程只有一个 Keil target，默认不定义 `APP_BENCH`，编译正式固件。需要在
+Keil 的 C/C++ 预处理器定义中加入 `APP_BENCH=1` 后重新编译，即生成台架固件。
+
+两种固件共用 `SteeringWheelApp`、AngleOpt、斜坡和 GM6020/VESC 驱动：
+
+- 正式入口从 CAN2 的 MasterCan 命令产生目标；
+- 台架入口从 Keil Watch 和波形产生目标，不启动 CAN2。
+
+台架入口提供 `DISABLED`、位置手动、位置正弦、位置三角波、GM6020 速度、
+GM6020 直接电压和 VESC ERPM。切换模式或发生执行器故障后必须先将
+`g_bench_input.enable` 清零再置 1，才允许重新使能。
 
 ## 模块文档
 
 各生产模块的接口、算法和约束见 [Lib/Docs/README.md](Lib/Docs/README.md)。
+应用编排、构建切换和 Watch 调参说明见 [App/README.md](App/README.md)。
 
 ## 启动顺序
 
 `main.c` 的启动顺序为：
 
 1. 初始化 GPIO、CAN1、CAN2、TIM6 和 USART1；
-2. 初始化 MasterCan、GM6020、VESC 和位置斜坡对象；
-3. 启动 CAN1，接收本地电机总线全部帧；
-4. 启动 CAN2，只接收 `0x101` 和 `0x111`；
+2. 调用当前编译变体的 `BoardApp_Init()`；
+3. 初始化共享应用核心，并启动 CAN1 接收本地电机总线；
+4. 正式变体启动 CAN2 并只接收 `0x101` 和 `0x111`；
 5. 最后启动 TIM6 1 kHz 中断；
 6. 进入主循环，执行 LED 和串口遥测。
 
@@ -70,21 +97,13 @@
 
 ## 运行时行为
 
-```text
-BOOT / 自检
-    │ 500 ms 且链路正常
-    ▼
-WAIT_COMMAND ──收到新控制帧──▶ ACTIVE
-    ▲                             │
-    │                         任一故障
-    │                             ▼
-    └──── 全部恢复且收到新控制帧 ── FAULT
-```
+安全逻辑不使用独立状态机框架，而是由启动时间、输入有效性和执行器在线条件
+直接决定使能：
 
-- `WAIT_COMMAND`：主控心跳可能正常，但尚未收到控制目标，整轮保持失能。
-- `ACTIVE`：GM6020 和 VESC 同时使能，目标持续有效。
-- `FAULT`：主控、GM6020 或 VESC 任一失效，整轮立即失能。
-- 故障期间收到的控制帧会被丢弃；恢复后必须重新收到控制帧。
+- 启动后前 500 ms 无论是否收到目标，GM6020 和 VESC 都保持零输出；
+- 正式模式要求主控链路有效、已收到控制目标且两个执行器在线；
+- 条件失效时两个执行器立即失能并持续发送零输出；
+- 故障期间收到的目标会被丢弃，恢复后必须重新收到新目标。
 
 控制命令的数据流：
 
@@ -166,17 +185,20 @@ GM6020 目标角经过位置斜坡：
 ## 机械零位校准
 
 GM6020 原始角范围为 `0..8191`。修改
-`APP_GM6020_ZERO_RAW` 后，反馈角和目标角会同时以新位置为 `0°`。
+`g_tuning_config.gm6020_zero_raw` 或编译期默认零位后，反馈角和目标角会
+同时以新位置为 `0°`。
 
 推荐流程：
 
 1. 给分控板供电，但不连接主控，确保电机失能；
 2. 将舵轮转到机械零位；
-3. 在 Keil Watch 中读取 `g_gm6020.raw_angle`；
-4. 将 [main.c](Core/Src/main.c) 中 `APP_GM6020_ZERO_RAW` 改为该值；
-5. 重新编译、烧录；
-6. 保持主控断开，确认 GM6020 实际角显示接近 `0°`；
-7. 正反旋转舵轮，确认角度变化方向正确。
+3. 在台架固件中读取
+   `g_steering_wheel_app.gm6020.raw_angle`；
+4. 让台架保持在 `DISABLED`，修改
+   `g_tuning_config.gm6020_zero_raw` 并递增 `g_tuning_apply_seq`；
+5. 确认 `g_tuning_apply_status` 为成功，重新使能前确认实际角接近 `0°`；
+6. 正反旋转舵轮，确认角度变化方向正确；
+7. 将最终零位写回 `AppConfig_LoadDefaults()`，重新编译正式固件。
 
 如果串口只能显示 GM6020 实际角×100，而当前零位为 `old_zero`：
 
@@ -187,7 +209,7 @@ new_zero  = (old_zero + delta_raw) mod 8192
 
 ## 安全策略
 
-以下任一条件不满足时，GM6020 和 VESC 都失能并持续发送零输出：
+正式模式下，以下任一条件不满足时，GM6020 和 VESC 都失能并持续发送零输出：
 
 - 主控 `link_valid=1`；
 - 主控 `control_seen=1`；
@@ -199,6 +221,10 @@ new_zero  = (old_zero + delta_raw) mod 8192
 1. 主控链路和执行器全部恢复在线；
 2. 收到一帧新的有效控制命令；
 3. 角度候选重新选择后，两个执行器再次同时使能。
+
+台架模式不要求主控在线，只检查当前场景涉及的执行器。GM6020 位置/速度/
+电压场景只需要 GM6020 在线，VESC ERPM 场景只需要 VESC 在线。模式切换或
+执行器掉线后，必须把 `g_bench_input.enable` 清零再置 1。
 
 ## LED
 
@@ -262,6 +288,11 @@ USART1 使用 `115200、8N1`，每 20 ms 尝试发送一次，即 50 Hz。
 | bit4 | 16 | 需要新控制帧 |
 | bit5 | 32 | GM6020 CAN 发送状态异常 |
 | bit6 | 64 | VESC CAN 发送状态异常 |
+| bit7 | 128 | 运行配置应用失败 |
+
+台架固件使用独立 CSV 通道顺序，至少包含时间、使能、执行器在线、场景、
+原始目标、AngleOpt 结果、GM6020/VESC 反馈、配置应用序号、配置应用状态和
+故障标志；生成台架固件后以当前 `board_app_bench.c` 的格式为准。
 
 ## 编译与烧录
 
@@ -271,20 +302,20 @@ Keil 工程：
 MDK-ARM/SteeringWheelDriver.uvprojx
 ```
 
-测试阶段的板级测试源码保存在 `Tests/`，但当前正式固件不编译任何测试壳。
-正式 CAN、TIM6、USART1 回调统一由 `main.c` 实现。
+默认配置为正式固件。台架构建必须在 Keil C/C++ 预处理器定义中加入
+`APP_BENCH=1`。正式 CAN、TIM6、USART1 中断入口仍由 `main.c` 提供，
+应用和总线初始化由当前编译变体的 `BoardApp` 入口完成。
 
 ## 主机端测试
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Tests\MasterCan\host\run.ps1
-powershell -ExecutionPolicy Bypass -File .\Tests\AngleOpt\host\run.ps1
-powershell -ExecutionPolicy Bypass -File .\Tests\SetpointRamp\host\run.ps1
-powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
-powershell -ExecutionPolicy Bypass -File .\Tests\VESC\host\run.ps1
+powershell -ExecutionPolicy Bypass -File .\Tests\run_all.ps1
 ```
 
-各模块的接线、调参和板级测试步骤见对应目录下的 README。
+该脚本运行五个模块测试，并分别编译运行正式与台架应用集成测试。
+AngleOpt、MasterCan、SetpointRamp 继续使用纯主机测试；GM6020/VESC 的
+真实硬件测试由台架入口承担。旧模块板级测试壳在新台架完成实机等价验收前
+保留，但不进入当前 Keil 构建。
 
 ## 常见故障
 

@@ -6,16 +6,17 @@
 
 板级测试按以下 VESC Tool 配置编写：
 
-| 项目 | 设置 |
-|---|---|
-| VESC ID | 67 |
-| Timeout | 100 ms |
-| Timeout Brake Current | 0.00 A |
+| 项目                      | 设置                   |
+| ----------------------- | -------------------- |
+| VESC ID                 | 67                   |
+| Timeout                 | 100 ms               |
+| Timeout Brake Current   | 0.00 A               |
 | Can Status Message Mode | CAN_STATUS_1_2_3_4_5 |
-| Can Status Rate | 50 Hz |
-| CAN Baud Rate | 1 Mbps |
-| CAN Mode | VESC |
-| APP to Use | No App |
+| Can Status Rate         | 50 Hz                |
+| CAN Baud Rate           | 1 Mbps               |
+| CAN Mode                | VESC                 |
+| APP to Use              | No App               |
+
 
 驱动使用扩展帧：
 
@@ -40,7 +41,7 @@ CAN 总线两端各接 `120 Ω` 终端电阻。首次测试必须可靠固定电
 
 ## 固件启动
 
-当前 `main.c` 使用 VESC 测试壳，调用顺序为：
+在main.c中调用顺序为：
 
 1. `VESCTest_Init(&hcan1, &huart1)`；
 2. `BSP_CAN_StartAcceptAll(&hcan1)`；

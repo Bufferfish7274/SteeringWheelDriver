@@ -33,6 +33,7 @@ powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
 - 超时零电压和 PID 复位；
 - 速度环从负积分状态恢复，避免静止时积分被冻结；
 - 位置/速度抗饱和限幅跟随当前运行时限幅；
+- 速度直控应用方向、电压直控绕过方向并复用失能零输出；
 - ID 1/ID 5 的 `0x1FF`/`0x2FF` 电压槽位；
 - CAN1 接收全部和 CAN2 主控精确过滤器。
 

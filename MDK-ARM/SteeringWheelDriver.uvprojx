@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F405xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Lib</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Lib;../App</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -428,6 +428,56 @@
               <FileName>stm32f4xx_hal_msp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f4xx_hal_msp.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>App</GroupName>
+          <Files>
+            <File>
+              <FileName>app_config.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\app_config.c</FilePath>
+            </File>
+            <File>
+              <FileName>steering_wheel_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\steering_wheel_app.c</FilePath>
+            </File>
+            <File>
+              <FileName>bench_input.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\bench_input.c</FilePath>
+            </File>
+            <File>
+              <FileName>board_app_production.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\board_app_production.c</FilePath>
+            </File>
+            <File>
+              <FileName>board_app_bench.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\board_app_bench.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\app_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>steering_wheel_app.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\steering_wheel_app.h</FilePath>
+            </File>
+            <File>
+              <FileName>bench_input.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\bench_input.h</FilePath>
+            </File>
+            <File>
+              <FileName>board_app.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\board_app.h</FilePath>
             </File>
           </Files>
         </Group>

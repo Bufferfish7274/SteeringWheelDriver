@@ -261,6 +261,35 @@ static void Test_ControlIntegralPolicy(void)
           "voltage continues increasing at standstill");
 }
 
+static void Test_DirectControlModes(void)
+{
+    GM6020_t motor;
+    CAN_HandleTypeDef can1 = {CAN1};
+
+    GM6020_Init(&motor, &can1, 1U, 0U, 1, -1, 1.0f);
+    motor.voltage_limit_raw = 5000;
+    motor.max_speed_rpm = 300.0f;
+    motor.is_online = 1U;
+    motor.is_enabled = 1U;
+    motor.last_rx_ms = 100U;
+
+    GM6020_ControlSpeedStep(&motor, 50.0f, 100U);
+    Check(fabsf(motor.target_speed_rpm - 50.0f) < 0.001f,
+          "speed mode tracks target RPM");
+    Check(motor.target_voltage < 0,
+          "speed mode applies voltage sign");
+
+    GM6020_ControlVoltageStep(&motor, 1234, 100U);
+    Check(motor.target_voltage == 1234,
+          "voltage mode bypasses voltage sign");
+    Check(motor.target_speed_rpm == 0.0f,
+          "voltage mode clears speed target");
+
+    GM6020_Disable(&motor);
+    Check(motor.target_voltage == 0,
+          "direct mode disable clears voltage");
+}
+
 static void Test_BspCan(void)
 {
     CAN_HandleTypeDef can1 = {CAN1};
@@ -307,6 +336,7 @@ int main(void)
     Test_FeedbackAndTimeout();
     Test_VoltagePacking();
     Test_ControlIntegralPolicy();
+    Test_DirectControlModes();
     Test_BspCan();
 
     if (g_failures != 0U)
