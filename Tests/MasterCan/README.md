@@ -1,6 +1,7 @@
 # 主控 CAN 模块测试
 
-本目录包含 `MasterCan` 的主机端测试和 STM32F405 板级接收测试。
+本目录包含 `MasterCan` 的主机端测试。实机主控联调使用正式固件，
+调试固件不启动 CAN2。
 
 ## 协议
 
@@ -25,7 +26,7 @@
 
 因此，主控保持目标不变时只需持续发送心跳，不需要周期重发控制帧。
 
-## 板级测试接线
+## 板级接线
 
 | 信号 | 连接 |
 |---|---|
@@ -34,51 +35,18 @@
 | USB-TTL RX | PA9（USART1_TX） |
 | USB-TTL GND | 分控板 GND |
 
-CAN2 使用 PB12/PB13，波特率为 `1 Mbps`。总线两端各接 `120 Ω` 终端电阻。
-
-本次测试不连接 GM6020 或 VESC，也不启动 CAN1。
-
-## 固件启动
-
-`main.c` 的测试顺序：
-
-1. `MasterCanTest_Init(&hcan2, &huart1)`；
-2. `BSP_CAN_StartMasterFilter(&hcan2, 1)`；
-3. `HAL_TIM_Base_Start_IT(&htim6)`；
-4. 主循环调用 `MasterCanTest_Loop()`。
-
-CAN2 过滤器只接收 `0x101` 和 `0x111`。TIM6 以 1 kHz 更新时间戳并执行链路超时判断。
+CAN2 使用 PB12/PB13，波特率为 `1 Mbps`。正式固件只接收 `0x101` 和
+`0x111`，总线两端各接 `120 Ω` 终端电阻。
 
 ## LED
 
-LED 均为低电平点亮：
-
-- PB4：测试心跳；
-- PB5：`link_valid`，主控链路正常；
-- PB6：`control_seen`，当前链路周期内已经收到目标；
-- PB7：收到有效控制帧后短暂点亮 100 ms。
+正式固件中的 PB4 表示 `link_valid`。其余 LED 分别表示执行器在线和整轮
+使能，完整定义见项目根目录 README。
 
 ## UART 遥测
 
-USART1：`115200、8N1`，50 Hz，FireWater 格式输出 20 个通道：
-
-```text
-当前时间ms,轮号,控制ID,心跳ID,目标ERPM,角度码,目标角×100,
-control_seen,link_valid,控制帧年龄ms,心跳帧年龄ms,
-控制帧计数,心跳帧计数,无效帧计数,
-CAN错误码,ESR,TSR,RF0R,CAN状态,RX FIFO填充量
-```
-
-串口只输出解码状态，不输出原始 CAN 字节。
-
-建议在 Vofa 中绘制：
-
-- `目标ERPM`；
-- `角度码`；
-- `目标角×100`；
-- `link_valid`；
-- `control_seen`；
-- 控制帧年龄和心跳帧年龄。
+正式固件的 27 列 FireWater 遥测包含目标 ERPM、角度码、链路状态以及
+控制帧/心跳帧年龄，通道定义见项目根目录 README。
 
 ## 主机端测试
 

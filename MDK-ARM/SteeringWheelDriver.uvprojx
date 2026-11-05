@@ -657,6 +657,36 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>App</GroupName>
+          <Files>
+            <File>
+              <FileName>App.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\App.c</FilePath>
+            </File>
+            <File>
+              <FileName>App.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\App.h</FilePath>
+            </File>
+            <File>
+              <FileName>AppConfig.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\AppConfig.h</FilePath>
+            </File>
+            <File>
+              <FileName>WheelDebug.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\WheelDebug.c</FilePath>
+            </File>
+            <File>
+              <FileName>WheelDebug.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\WheelDebug.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>

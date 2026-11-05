@@ -88,12 +88,14 @@
                 └──────── CAN1 ─────────┘
 ```
 
-`main.c` 只保留 CubeMX 外设初始化、HAL 中断入口和板级应用入口调用：
+`main.c` 只保留 Cube 外设初始化和 `App_*` 调用。`App_t` 是顶层组合对象，
+负责：
 
-- `BoardApp_Init()` 选择正式或台架实现并启动相应总线；
-- `BoardApp_OnCanRx()` 转发已经读取的 CAN 报文；
-- `BoardApp_ControlStep()` 驱动 1 kHz 应用控制；
-- `BoardApp_MainLoop()` 调度 LED 和遥测。
+- 初始化各模块；
+- 配置并启动 CAN1 和正式版 CAN2；
+- 接收 `main.c` 转发的 HAL CAN/TIM/UART 事件；
+- 维护整轮安全状态；
+- 调度 LED 和串口遥测。
 
 `SteeringWheelApp` 是共享控制核心，负责输入有效性、执行器在线判断、
 AngleOpt、位置斜坡和驱动调度。正式入口负责 MasterCan 和坐标映射；台架入口
@@ -271,10 +273,7 @@ GM6020 使用位置-速度串级控制：
 - [x] 四 LED 在线/使能指示；
 - [x] 27 通道、50 Hz UART 遥测；
 - [x] 各模块主机测试；
-- [x] 正式与台架应用集成测试；
-- [x] 正式与台架共用应用控制核心；
-- [x] `APP_BENCH` 编译选择台架入口；
-- [x] Keil Watch 在线配置、应用序号和结果可观测。
+- [x] 调试能力整合进独立调试构建目标，正式固件排除调试入口。
 
 ## 13. 验证状态
 
@@ -282,7 +281,7 @@ GM6020 使用位置-速度串级控制：
 
 - Keil ARMCC 编译通过，`0 Error(s), 0 Warning(s)`；
 - MasterCan、AngleOpt、SetpointRamp、GM6020、VESC 主机测试通过；
-- 正式固件中的 CAN/TIM/UART 回调只来自 `main.c`；
+- CAN、TIM、UART 回调只在 `main.c` 中定义并统一转发给 App；
 - GM6020 零位和方向已完成实机标定；
 - 主控 CAN、执行器 CAN、故障保护和整轮耦合已完成功能验证。
 - MasterCan、AngleOpt、SetpointRamp、GM6020、VESC 和正式/台架应用集成
