@@ -47,7 +47,7 @@ CAN1 使用 bank 0/1，CAN2 使用 bank 14/15。`wheel_id` 当前限制为 `1..4
 ## 错误处理
 
 所有公开函数在过滤器配置、CAN 启动或中断通知任一步失败时返回错误。
-正式应用在 `main.c` 中对返回值调用 `Error_Handler()`。
+正式应用在 `App_Start()` 中对返回值调用 `Error_Handler()`。
 
 ## 使用顺序
 

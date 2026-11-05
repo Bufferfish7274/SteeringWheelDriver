@@ -13,5 +13,5 @@
 | [AngleOpt](AngleOpt.md) | 最近物理等效舵向选择 |
 | [SetpointRamp](SetpointRamp.md) | 位置目标速度和加速度限制 |
 
-模块的主机测试分别位于 `Tests/<Module>/host/`。`Tests/*/firmware`
-中的测试壳只在模块调试阶段使用，不参与当前正式固件构建。
+模块的主机测试分别位于 `Tests/<Module>/host/`。实机调参统一通过
+`WHEEL_BUILD_DEBUG=1` 和 `g_wheel_debug` 完成。

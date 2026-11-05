@@ -13,6 +13,7 @@
   │ CAN2：0x101 控制 / 0x111 心跳
   ▼
 舵轮分控板
+  ├─ App：组合对象、安全状态机、构建模式调度
   ├─ MasterCan：协议解码、控制可用、链路超时
   ├─ AngleOpt：选择最短物理等效舵向，并决定 ERPM 符号
   ├─ SetpointRamp：限制 GM6020 目标角速度和角加速度
@@ -48,8 +49,8 @@
 | VESC 控制器 ID    | 67                    |
 | 主控角度映射         | `sign=+1`、`offset=0°` |
 
-配置集中在 [main.c](Core/Src/main.c) 的 `USER CODE BEGIN PD` 区域。
-修改机械零位或设备 ID 时，应优先修改这些宏，不要在业务函数中写死。
+配置集中在 [AppConfig.h](App/AppConfig.h)。修改机械零位、设备 ID、
+PID、斜坡或安全限幅时，应优先修改这些宏，不要在业务函数中写死。
 
 ## 模块文档
 
@@ -57,14 +58,13 @@
 
 ## 启动顺序
 
-`main.c` 的启动顺序为：
+`main.c` 只保留外设初始化和 App 调用。启动顺序为：
 
 1. 初始化 GPIO、CAN1、CAN2、TIM6 和 USART1；
-2. 初始化 MasterCan、GM6020、VESC 和位置斜坡对象；
-3. 启动 CAN1，接收本地电机总线全部帧；
-4. 启动 CAN2，只接收 `0x101` 和 `0x111`；
-5. 最后启动 TIM6 1 kHz 中断；
-6. 进入主循环，执行 LED 和串口遥测。
+2. `App_Init()` 初始化 GM6020、VESC、位置斜坡和构建对应的输入层；
+3. `App_Start()` 启动 CAN1，正式版继续启动 CAN2 并只接收 `0x101`/`0x111`；
+4. 最后启动 TIM6 1 kHz 中断；
+5. 主循环只调用 `App_Loop()`，由 App 调度 LED 和串口遥测。
 
 上电后前 500 ms 四个 LED 常亮，同时禁止两个执行器使能。
 
@@ -172,8 +172,8 @@ GM6020 原始角范围为 `0..8191`。修改
 
 1. 给分控板供电，但不连接主控，确保电机失能；
 2. 将舵轮转到机械零位；
-3. 在 Keil Watch 中读取 `g_gm6020.raw_angle`；
-4. 将 [main.c](Core/Src/main.c) 中 `APP_GM6020_ZERO_RAW` 改为该值；
+3. 在 Keil Watch 中读取 `g_app.gm6020.raw_angle`；
+4. 将 [AppConfig.h](App/AppConfig.h) 中 `APP_GM6020_ZERO_RAW` 改为该值；
 5. 重新编译、烧录；
 6. 保持主控断开，确认 GM6020 实际角显示接近 `0°`；
 7. 正反旋转舵轮，确认角度变化方向正确。
@@ -251,6 +251,10 @@ USART1 使用 `115200、8N1`，每 20 ms 尝试发送一次，即 50 Hz。
 |  27 | 故障标志               |
 |     |                    |
 
+调试固件保持以上 27 列不变，并在末尾追加调试模式、使能、位置源角、
+方向 ERPM、GM 目标 RPM、PID 中间项、CAN1 状态和 ERPM 上限。字段定义见
+[调试模式说明](Docs/DebugMode.md)。
+
 ### 故障标志
 
 | 位 | 值 | 含义 |
@@ -271,20 +275,33 @@ Keil 工程：
 MDK-ARM/SteeringWheelDriver.uvprojx
 ```
 
-测试阶段的板级测试源码保存在 `Tests/`，但当前正式固件不编译任何测试壳。
-正式 CAN、TIM6、USART1 回调统一由 `main.c` 实现。
+工程只有一个构建目标 `SteeringWheelDriver`。正式和调试固件通过
+[AppConfig.h](App/AppConfig.h) 顶部的 `WHEEL_BUILD_DEBUG` 切换：
+
+- `WHEEL_BUILD_DEBUG=0`：正式主控链路；
+- `WHEEL_BUILD_DEBUG=1`：只启动 CAN1，通过 Watch 中的
+  `g_wheel_debug` 选择调试模式。
+
+修改宏后重新编译并烧录同一个目标。不要在 Keil 的 Preprocessor Symbols
+中重复定义该宏。
+
+测试和烧录步骤见 [调试模式说明](Docs/DebugMode.md)。板级测试不再使用
+独立测试壳；CAN、TIM6、USART1 回调统一由 `main.c` 转发给 App。
 
 ## 主机端测试
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\Tests\App\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\MasterCan\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\AngleOpt\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\SetpointRamp\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\VESC\host\run.ps1
+powershell -ExecutionPolicy Bypass -File .\Tests\WheelDebug\host\run.ps1
 ```
 
-各模块的接线、调参和板级测试步骤见对应目录下的 README。
+各模块的协议和主机测试见对应目录下的 README；实机调参统一按
+[调试模式说明](Docs/DebugMode.md) 执行。
 
 ## 常见故障
 

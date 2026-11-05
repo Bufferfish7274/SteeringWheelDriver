@@ -8,7 +8,7 @@
 
 /**
  * @file GM6020.h
- * @brief GM6020 电压模式驱动、单圈角度解绕和串级 PID 控制。
+ * @brief GM6020 电压模式驱动、单圈角度解绕和三种控制模式。
  *
  * 控制链：
  *   目标舵轮角 -> 位置 PID -> 目标 RPM -> 速度 PID -> 电压 raw
@@ -38,6 +38,33 @@
 #define GM6020_DEFAULT_SPD_INTEGRAL_MAX 8000.0f
 #define GM6020_DEFAULT_SPD_SEP_RPM      100.0f
 
+typedef enum
+{
+    GM6020_CONTROL_POSITION = 0,
+    GM6020_CONTROL_SPEED,
+    GM6020_CONTROL_VOLTAGE
+} GM6020_ControlMode_t;
+
+typedef struct
+{
+    float kp;
+    float ki;
+    float kd;
+    float integral_max;
+    uint8_t integral_separation;
+    float separation_threshold;
+} GM6020_PidTuning_t;
+
+typedef struct
+{
+    GM6020_PidTuning_t position;
+    GM6020_PidTuning_t speed;
+    float control_dt_s;
+    float max_speed_rpm;
+    int16_t voltage_limit_raw;
+    uint32_t online_timeout_ms;
+} GM6020_Tuning_t;
+
 typedef struct
 {
     /* 初始化配置 */
@@ -55,11 +82,14 @@ typedef struct
     int16_t current_raw;        /* GM6020 反馈的转矩电流 raw */
     uint8_t temperature;        /* GM6020 反馈温度 */
     uint8_t is_online;          /* 是否在超时时间内收到反馈 */
-    uint8_t is_enabled;         /* 是否允许位置环输出 */
+    uint8_t is_enabled;         /* 是否允许当前控制模式输出 */
     uint32_t last_rx_ms;        /* 上次收到反馈的时间 */
 
+    GM6020_ControlMode_t control_mode;
     float target_angle_deg;     /* 目标舵轮角: 0..360 */
+    float requested_speed_rpm;  /* SetTargetSpeed 写入的速度请求 */
     float target_speed_rpm;     /* 位置环输出的目标转速 */
+    int16_t requested_voltage_raw; /* SetTargetVoltage 写入的电压请求 */
     int16_t target_voltage;     /* 最终发给 GM6020 的电压 raw */
 
     /* 最近一次电压帧发送诊断 */
@@ -98,6 +128,14 @@ void GM6020_Init(GM6020_t *motor,
                  float gear_ratio);
 
 /**
+ * @brief 在电机尚未使能时应用应用层调参。
+ * @return HAL_OK 表示参数已应用；HAL_ERROR 表示参数为空或电机正在使能。
+ */
+HAL_StatusTypeDef GM6020_ApplyTuning(
+    GM6020_t *motor,
+    const GM6020_Tuning_t *tuning);
+
+/**
  * @brief 解析一帧 GM6020 反馈并更新时间戳和在线状态。
  * @note 期望标准数据帧 0x204+id，DLC 8。首次重新上线时重置目标与 PID。
  */
@@ -109,14 +147,27 @@ void GM6020_OnRx(GM6020_t *motor,
 /** @brief 设置舵轮目标角，内部归一化到 0..360。 */
 void GM6020_SetTargetAngle(GM6020_t *motor, float angle_deg);
 
-/** @brief 使能控制，并把目标角重置为当前反馈角以避免使能跳变。 */
+/** @brief 设置速度环目标 RPM，不会自动使能电机。 */
+void GM6020_SetTargetSpeed(GM6020_t *motor, float speed_rpm);
+
+/** @brief 设置直接电压目标 raw，不会自动使能电机。 */
+void GM6020_SetTargetVoltage(GM6020_t *motor, int16_t voltage_raw);
+
+/**
+ * @brief 切换位置、速度或直接电压控制模式。
+ * @note 有效模式变化会先失能、发送零输出、清目标和复位 PID。
+ */
+void GM6020_SetControlMode(GM6020_t *motor,
+                           GM6020_ControlMode_t mode);
+
+/** @brief 使能当前控制模式，并从中性目标开始。 */
 void GM6020_Enable(GM6020_t *motor);
 
 /** @brief 失能、清 PID，并立即发送一次零电压。 */
 void GM6020_Disable(GM6020_t *motor);
 
 /**
- * @brief 执行一次 1 kHz 串级控制。
+ * @brief 执行一次 1 kHz 位置、速度或直接电压控制。
  * @note 反馈超时、失能或离线时仍会调用发送流程，确保总线上持续输出零电压。
  */
 void GM6020_ControlStep(GM6020_t *motor, uint32_t now_ms);

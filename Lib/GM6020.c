@@ -35,6 +35,23 @@ static float GM6020_ClampAbs(float value, float limit)
     return value;
 }
 
+static int16_t GM6020_ClampVoltage(const GM6020_t *motor,
+                                   float voltage_raw)
+{
+    float limit = fabsf((float)motor->voltage_limit_raw);
+
+    if (limit > (float)GM6020_MAX_VOLTAGE_RAW)
+    {
+        limit = (float)GM6020_MAX_VOLTAGE_RAW;
+    }
+    if (limit < 1.0f)
+    {
+        return 0;
+    }
+
+    return (int16_t)GM6020_ClampAbs(voltage_raw, limit);
+}
+
 /**
  * @brief 把单圈原始编码器角换算为舵轮本地坐标角。
  *
@@ -96,8 +113,11 @@ void GM6020_Init(GM6020_t *motor, CAN_HandleTypeDef *hcan, uint8_t id, uint16_t 
     motor->is_enabled = 0U;
     motor->last_rx_ms = 0U;
 
+    motor->control_mode = GM6020_CONTROL_POSITION;
     motor->target_angle_deg = 0.0f;
+    motor->requested_speed_rpm = 0.0f;
     motor->target_speed_rpm = 0.0f;
+    motor->requested_voltage_raw = 0;
     motor->target_voltage = 0;
 
     motor->last_tx_status = HAL_ERROR;
@@ -131,6 +151,71 @@ void GM6020_Init(GM6020_t *motor, CAN_HandleTypeDef *hcan, uint8_t id, uint16_t 
             GM6020_DEFAULT_SPD_INTEGRAL_MAX,
             0U, /* 速度积分持续工作，用于克服低速静摩擦。 */
             GM6020_DEFAULT_SPD_SEP_RPM);
+}
+
+/**
+ * @brief 用应用层配置重建两级 PID 和运行限幅。
+ * @note 只能在未使能状态调用，避免运行中参数来源不一致。
+ */
+HAL_StatusTypeDef GM6020_ApplyTuning(
+    GM6020_t *motor,
+    const GM6020_Tuning_t *tuning)
+{
+    float control_dt_s;
+    float max_speed_rpm;
+    int32_t voltage_limit_raw;
+    uint32_t online_timeout_ms;
+
+    if ((motor == NULL) || (tuning == NULL) ||
+        (motor->is_enabled != 0U))
+    {
+        return HAL_ERROR;
+    }
+
+    control_dt_s =
+        (tuning->control_dt_s > 0.0f)
+            ? tuning->control_dt_s
+            : GM6020_DEFAULT_CONTROL_DT;
+    max_speed_rpm = fabsf(tuning->max_speed_rpm);
+    voltage_limit_raw = (int32_t)tuning->voltage_limit_raw;
+    if (voltage_limit_raw < 0)
+    {
+        voltage_limit_raw = -voltage_limit_raw;
+    }
+    if (voltage_limit_raw > GM6020_MAX_VOLTAGE_RAW)
+    {
+        voltage_limit_raw = GM6020_MAX_VOLTAGE_RAW;
+    }
+    online_timeout_ms =
+        (tuning->online_timeout_ms > 0U)
+            ? tuning->online_timeout_ms
+            : GM6020_DEFAULT_TIMEOUT_MS;
+
+    motor->max_speed_rpm = max_speed_rpm;
+    motor->voltage_limit_raw = (int16_t)voltage_limit_raw;
+    motor->online_timeout_ms = online_timeout_ms;
+
+    PidInit(&motor->position_pid,
+            tuning->position.kp,
+            tuning->position.ki,
+            tuning->position.kd,
+            control_dt_s,
+            motor->max_speed_rpm,
+            tuning->position.integral_max,
+            tuning->position.integral_separation,
+            tuning->position.separation_threshold);
+
+    PidInit(&motor->speed_pid,
+            tuning->speed.kp,
+            tuning->speed.ki,
+            tuning->speed.kd,
+            control_dt_s,
+            (float)motor->voltage_limit_raw,
+            tuning->speed.integral_max,
+            tuning->speed.integral_separation,
+            tuning->speed.separation_threshold);
+
+    return HAL_OK;
 }
 
 /**
@@ -171,7 +256,9 @@ void GM6020_OnRx(GM6020_t *motor, const CAN_RxHeaderTypeDef *header, const uint8
     if (!was_online)
     {
         motor->target_angle_deg = motor->angle_deg;
+        motor->requested_speed_rpm = 0.0f;
         motor->target_speed_rpm = 0.0f;
+        motor->requested_voltage_raw = 0;
         motor->target_voltage = 0;
         PidReset(&motor->position_pid);
         PidReset(&motor->speed_pid);
@@ -191,6 +278,58 @@ void GM6020_SetTargetAngle(GM6020_t *motor, float angle_deg)
     motor->target_angle_deg = GM6020_Wrap360(angle_deg);
 }
 
+void GM6020_SetTargetSpeed(GM6020_t *motor, float speed_rpm)
+{
+    if (motor == NULL)
+    {
+        return;
+    }
+
+    motor->requested_speed_rpm = speed_rpm;
+}
+
+void GM6020_SetTargetVoltage(GM6020_t *motor, int16_t voltage_raw)
+{
+    if (motor == NULL)
+    {
+        return;
+    }
+
+    if (voltage_raw > GM6020_MAX_VOLTAGE_RAW)
+    {
+        voltage_raw = GM6020_MAX_VOLTAGE_RAW;
+    }
+    else if (voltage_raw < -GM6020_MAX_VOLTAGE_RAW)
+    {
+        voltage_raw = -GM6020_MAX_VOLTAGE_RAW;
+    }
+
+    motor->requested_voltage_raw = voltage_raw;
+}
+
+void GM6020_SetControlMode(GM6020_t *motor,
+                           GM6020_ControlMode_t mode)
+{
+    if ((motor == NULL) ||
+        ((mode != GM6020_CONTROL_POSITION) &&
+         (mode != GM6020_CONTROL_SPEED) &&
+         (mode != GM6020_CONTROL_VOLTAGE)) ||
+        (mode == motor->control_mode))
+    {
+        return;
+    }
+
+    (void)GM6020_Disable(motor);
+    motor->requested_speed_rpm = 0.0f;
+    motor->requested_voltage_raw = 0;
+    motor->target_speed_rpm = 0.0f;
+    motor->target_voltage = 0;
+    PidReset(&motor->position_pid);
+    PidReset(&motor->speed_pid);
+    motor->control_mode = mode;
+    (void)GM6020_SendVoltage(motor, 0);
+}
+
 /**
  * @brief 使能 GM6020 控制。
  * @note 在线时以当前实际角作为新目标；清空 PID 可避免上次运行积分残留。
@@ -202,12 +341,17 @@ void GM6020_Enable(GM6020_t *motor)
         return;
     }
 
-    if (motor->is_online)
+    if (motor->is_online == 0U)
     {
-        motor->target_angle_deg = motor->angle_deg;
+        motor->is_enabled = 0U;
+        return;
     }
 
+    motor->target_angle_deg = motor->angle_deg;
+
+    motor->requested_speed_rpm = 0.0f;
     motor->target_speed_rpm = 0.0f;
+    motor->requested_voltage_raw = 0;
     motor->target_voltage = 0;
     PidReset(&motor->position_pid);
     PidReset(&motor->speed_pid);
@@ -223,7 +367,9 @@ void GM6020_Disable(GM6020_t *motor)
     }
 
     motor->is_enabled = 0U;
+    motor->requested_speed_rpm = 0.0f;
     motor->target_speed_rpm = 0.0f;
+    motor->requested_voltage_raw = 0;
     motor->target_voltage = 0;
 
     if (motor->is_online)
@@ -237,7 +383,7 @@ void GM6020_Disable(GM6020_t *motor)
 }
 
 /**
- * @brief 1 kHz 位置-速度串级控制。
+ * @brief 1 kHz 位置、速度或直接电压控制。
  *
  * 位置误差经过 wrap180 后送入位置 PID，其输出作为目标 RPM；
  * 速度 PID 将目标 RPM 与反馈 RPM 的误差转换为电压 raw。
@@ -259,7 +405,10 @@ void GM6020_ControlStep(GM6020_t *motor, uint32_t now_ms)
     {
         /* 反馈超时：清状态、清积分并立即输出零电压。 */
         motor->is_online = 0U;
+        motor->is_enabled = 0U;
+        motor->requested_speed_rpm = 0.0f;
         motor->target_speed_rpm = 0.0f;
+        motor->requested_voltage_raw = 0;
         motor->target_voltage = 0;
         PidReset(&motor->position_pid);
         PidReset(&motor->speed_pid);
@@ -281,27 +430,54 @@ void GM6020_ControlStep(GM6020_t *motor, uint32_t now_ms)
      */
     GM6020_UpdateControlLimits(motor);
 
-    /* 使用最短角误差，使 359° 与 1° 之间不会被误判为整圈旋转。 */
-    error_deg =
-        GM6020_Wrap180(motor->target_angle_deg - motor->angle_deg);
+    target_rpm = 0.0f;
+    voltage_cmd = 0.0f;
 
-    /* 位置环输出目标转速，速度环再输出最终电压。 */
-    target_rpm =
-        PidCalPositionError(&motor->position_pid, error_deg);
-    target_rpm =
-        GM6020_ClampAbs(target_rpm, motor->max_speed_rpm);
+    switch (motor->control_mode)
+    {
+        case GM6020_CONTROL_POSITION:
+            /* 使用最短角误差，使 359° 与 1° 之间不会被误判为整圈旋转。 */
+            error_deg =
+                GM6020_Wrap180(motor->target_angle_deg -
+                               motor->angle_deg);
+            target_rpm =
+                PidCalPositionError(&motor->position_pid,
+                                    error_deg);
+            target_rpm =
+                GM6020_ClampAbs(target_rpm,
+                                motor->max_speed_rpm);
+            voltage_cmd =
+                PidCalPosition(&motor->speed_pid,
+                               target_rpm,
+                               (float)motor->speed_rpm);
+            voltage_cmd *= (float)motor->voltage_sign;
+            break;
+
+        case GM6020_CONTROL_SPEED:
+            target_rpm =
+                GM6020_ClampAbs(motor->requested_speed_rpm,
+                                motor->max_speed_rpm);
+            voltage_cmd =
+                PidCalPosition(&motor->speed_pid,
+                               target_rpm,
+                               (float)motor->speed_rpm);
+            voltage_cmd *= (float)motor->voltage_sign;
+            break;
+
+        case GM6020_CONTROL_VOLTAGE:
+            /* 直发电压用于功率链路诊断，不应用 voltage_sign。 */
+            voltage_cmd = (float)motor->requested_voltage_raw;
+            break;
+
+        default:
+            target_rpm = 0.0f;
+            voltage_cmd = 0.0f;
+            break;
+    }
+
     motor->target_speed_rpm = target_rpm;
-
-    voltage_cmd =
-        PidCalPosition(&motor->speed_pid,
-                       target_rpm,
-                       (float)motor->speed_rpm);
-    voltage_cmd *= (float)motor->voltage_sign;
-    voltage_cmd =
-        GM6020_ClampAbs(voltage_cmd,
-                        (float)motor->voltage_limit_raw);
-
-    motor->target_voltage = (int16_t)voltage_cmd;
+    motor->target_voltage =
+        GM6020_ClampVoltage(motor, voltage_cmd);
     (void)GM6020_SendVoltage(motor, motor->target_voltage);
 }
 

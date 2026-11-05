@@ -261,6 +261,129 @@ static void Test_ControlIntegralPolicy(void)
           "voltage continues increasing at standstill");
 }
 
+static void Test_TuningAndControlModes(void)
+{
+    GM6020_t motor;
+    CAN_HandleTypeDef can1 = {CAN1};
+    GM6020_Tuning_t tuning = {0};
+
+    GM6020_Init(&motor, &can1, 1U, 0U, 1, -1, 1.0f);
+
+    tuning.position.kp = 12.0f;
+    tuning.position.ki = 1.0f;
+    tuning.position.kd = 0.2f;
+    tuning.position.integral_max = 40.0f;
+    tuning.position.integral_separation = 1U;
+    tuning.position.separation_threshold = 8.0f;
+    tuning.speed.kp = 60.0f;
+    tuning.speed.ki = 30.0f;
+    tuning.speed.kd = 0.0f;
+    tuning.speed.integral_max = 4000.0f;
+    tuning.speed.integral_separation = 0U;
+    tuning.speed.separation_threshold = 100.0f;
+    tuning.control_dt_s = 0.001f;
+    tuning.max_speed_rpm = 250.0f;
+    tuning.voltage_limit_raw = 5000;
+    tuning.online_timeout_ms = 15U;
+
+    Check(GM6020_ApplyTuning(&motor, &tuning) == HAL_OK,
+          "tuning applies while disabled");
+    Check(fabsf(motor.position_pid.kp - 12.0f) < 0.001f,
+          "position tuning applied");
+    Check(fabsf(motor.speed_pid.ki - 30.0f) < 0.001f,
+          "speed tuning applied");
+    Check(motor.online_timeout_ms == 15U,
+          "timeout tuning applied");
+
+    motor.is_online = 1U;
+    motor.angle_deg = 0.0f;
+    motor.speed_rpm = 0;
+    motor.last_rx_ms = 100U;
+    GM6020_Enable(&motor);
+    Check(motor.is_enabled == 1U, "online motor enables");
+
+    Check(GM6020_ApplyTuning(&motor, &tuning) == HAL_ERROR,
+          "tuning rejected while enabled");
+
+    GM6020_SetControlMode(&motor, GM6020_CONTROL_SPEED);
+    Check(motor.is_enabled == 0U,
+          "mode change clears enable");
+    Check(motor.target_voltage == 0,
+          "mode change sends neutral target");
+    GM6020_Enable(&motor);
+    GM6020_SetTargetSpeed(&motor, 400.0f);
+    GM6020_ControlStep(&motor, 100U);
+    Check(fabsf(motor.target_speed_rpm - 250.0f) < 0.001f,
+          "speed target limited to max RPM");
+    Check(motor.target_voltage != 0,
+          "speed mode drives the speed PID");
+
+    GM6020_SetControlMode(&motor, GM6020_CONTROL_VOLTAGE);
+    Check(motor.is_enabled == 0U,
+          "voltage mode starts disabled");
+    GM6020_Enable(&motor);
+    GM6020_SetTargetVoltage(&motor, 8000);
+    GM6020_ControlStep(&motor, 100U);
+    Check(motor.target_speed_rpm == 0.0f,
+          "voltage mode bypasses speed PID");
+    Check(motor.target_voltage == 5000,
+          "voltage mode applies runtime limit");
+    Check(motor.last_tx_voltage == 5000,
+          "voltage mode ignores negative voltage sign");
+
+    GM6020_SetControlMode(&motor, GM6020_CONTROL_POSITION);
+    Check(motor.requested_voltage_raw == 0,
+          "mode change clears voltage request");
+    Check(motor.is_enabled == 0U,
+          "position mode starts disabled");
+}
+
+static void Test_ControlModeTimeouts(void)
+{
+    GM6020_t motor;
+    CAN_HandleTypeDef can1 = {CAN1};
+    GM6020_ControlMode_t modes[] =
+    {
+        GM6020_CONTROL_POSITION,
+        GM6020_CONTROL_SPEED,
+        GM6020_CONTROL_VOLTAGE
+    };
+    uint32_t i;
+
+    for (i = 0U; i < 3U; i++)
+    {
+        GM6020_Init(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
+        motor.is_online = 1U;
+        motor.last_rx_ms = 10U;
+        motor.angle_deg = 0.0f;
+        motor.speed_rpm = 0;
+        GM6020_SetControlMode(&motor, modes[i]);
+        GM6020_Enable(&motor);
+        GM6020_SetTargetAngle(&motor, 20.0f);
+        GM6020_SetTargetSpeed(&motor, 50.0f);
+        GM6020_SetTargetVoltage(&motor, 1000);
+
+        GM6020_ControlStep(&motor, 30U);
+        Check(motor.is_online == 1U,
+              "mode remains online at timeout boundary");
+
+        GM6020_ControlStep(&motor, 31U);
+        Check(motor.is_online == 0U,
+              "mode times out after boundary");
+        Check(motor.is_enabled == 0U,
+              "timeout clears enable");
+        Check(motor.target_voltage == 0,
+              "timeout clears voltage");
+        Check(motor.requested_speed_rpm == 0.0f,
+              "timeout clears speed request");
+        Check(motor.requested_voltage_raw == 0,
+              "timeout clears voltage request");
+        Check((g_last_tx_data[0] == 0U) &&
+              (g_last_tx_data[1] == 0U),
+              "timeout sends zero output");
+    }
+}
+
 static void Test_BspCan(void)
 {
     CAN_HandleTypeDef can1 = {CAN1};
@@ -307,6 +430,8 @@ int main(void)
     Test_FeedbackAndTimeout();
     Test_VoltagePacking();
     Test_ControlIntegralPolicy();
+    Test_TuningAndControlModes();
+    Test_ControlModeTimeouts();
     Test_BspCan();
 
     if (g_failures != 0U)

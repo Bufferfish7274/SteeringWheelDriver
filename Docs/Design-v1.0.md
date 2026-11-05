@@ -88,11 +88,12 @@
                 └──────── CAN1 ─────────┘
 ```
 
-`main.c` 是顶层组合根，负责：
+`main.c` 只保留 Cube 外设初始化和 `App_*` 调用。`App_t` 是顶层组合对象，
+负责：
 
 - 初始化各模块；
-- 配置并启动两路 CAN；
-- 提供 HAL CAN/TIM/UART 回调；
+- 配置并启动 CAN1 和正式版 CAN2；
+- 接收 `main.c` 转发的 HAL CAN/TIM/UART 事件；
 - 维护整轮安全状态；
 - 调度 LED 和串口遥测。
 
@@ -275,7 +276,7 @@ FAULT
 - [x] 四 LED 在线/使能指示；
 - [x] 27 通道、50 Hz UART 遥测；
 - [x] 各模块主机测试；
-- [x] 正式固件排除板级测试壳。
+- [x] 调试能力整合进独立调试构建目标，正式固件排除调试入口。
 
 ## 13. 验证状态
 
@@ -283,7 +284,7 @@ FAULT
 
 - Keil ARMCC 编译通过，`0 Error(s), 0 Warning(s)`；
 - MasterCan、AngleOpt、SetpointRamp、GM6020、VESC 主机测试通过；
-- 正式固件中的 CAN/TIM/UART 回调只来自 `main.c`；
+- CAN、TIM、UART 回调只在 `main.c` 中定义并统一转发给 App；
 - GM6020 零位和方向已完成实机标定；
 - 主控 CAN、执行器 CAN、故障保护和整轮耦合已完成功能验证。
 
