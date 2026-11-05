@@ -1,0 +1,7 @@
+# Keil build outputs and per-user debugger state
+MDK-ARM/SteeringWheelDriver/
+MDK-ARM/SteeringWheelDriver_Debug/
+MDK-ARM/*.uvguix.*
+MDK-ARM/*.lst
+MDK-ARM/RTE/_SteeringWheelDriver_Debug/
+MDK-ARM/DebugConfig/*_Debug_*

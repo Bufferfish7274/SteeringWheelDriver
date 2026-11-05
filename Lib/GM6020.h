@@ -172,22 +172,6 @@ void GM6020_Disable(GM6020_t *motor);
  */
 void GM6020_ControlStep(GM6020_t *motor, uint32_t now_ms);
 
-/**
- * @brief 使用速度环直接跟踪目标 RPM。
- * @note 复用在线、超时、失能和 CAN 发送流程；电压输出应用 voltage_sign。
- */
-void GM6020_ControlSpeedStep(GM6020_t *motor,
-                             float target_rpm,
-                             uint32_t now_ms);
-
-/**
- * @brief 直接发送限幅后的 raw 电压，绕过位置环和速度环。
- * @note 直接电压不应用 voltage_sign，便于单独排查功率链路。
- */
-void GM6020_ControlVoltageStep(GM6020_t *motor,
-                               int16_t target_voltage,
-                               uint32_t now_ms);
-
 /** @brief 将电压命令打包并发送到对应 GM6020 电压控制槽位。 */
 HAL_StatusTypeDef GM6020_SendVoltage(GM6020_t *motor, int16_t voltage_raw);
 

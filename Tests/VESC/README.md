@@ -7,17 +7,16 @@
 
 板级测试按以下 VESC Tool 配置编写：
 
-| 项目                      | 设置                   |
-| ----------------------- | -------------------- |
-| VESC ID                 | 67                   |
-| Timeout                 | 100 ms               |
-| Timeout Brake Current   | 0.00 A               |
+| 项目 | 设置 |
+|---|---|
+| VESC ID | 67 |
+| Timeout | 100 ms |
+| Timeout Brake Current | 0.00 A |
 | Can Status Message Mode | CAN_STATUS_1_2_3_4_5 |
-| Can Status Rate         | 50 Hz                |
-| CAN Baud Rate           | 1 Mbps               |
-| CAN Mode                | VESC                 |
-| APP to Use              | No App               |
-
+| Can Status Rate | 50 Hz |
+| CAN Baud Rate | 1 Mbps |
+| CAN Mode | VESC |
+| APP to Use | No App |
 
 驱动使用扩展帧：
 

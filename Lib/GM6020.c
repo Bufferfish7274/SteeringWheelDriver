@@ -1,6 +1,5 @@
 #include "GM6020.h"
 
-#include <float.h>
 #include <math.h>
 #include <string.h>
 
@@ -87,38 +86,6 @@ static void GM6020_UpdateControlLimits(GM6020_t *motor)
     motor->position_pid.output_max = fabsf(motor->max_speed_rpm);
     motor->speed_pid.output_max =
         fabsf((float)motor->voltage_limit_raw);
-}
-
-/**
- * @brief 检查超时和使能状态，并同步运行时限幅。
- * @return 1 表示可以执行闭环或直接输出；0 表示已经输出零电压。
- */
-static uint8_t GM6020_PrepareControlStep(GM6020_t *motor,
-                                         uint32_t now_ms)
-{
-    if (motor->is_online &&
-        ((uint32_t)(now_ms - motor->last_rx_ms) >
-         motor->online_timeout_ms))
-    {
-        motor->is_online = 0U;
-        motor->target_speed_rpm = 0.0f;
-        motor->target_voltage = 0;
-        PidReset(&motor->position_pid);
-        PidReset(&motor->speed_pid);
-        (void)GM6020_SendVoltage(motor, 0);
-        return 0U;
-    }
-
-    if (!motor->is_enabled || !motor->is_online)
-    {
-        motor->target_speed_rpm = 0.0f;
-        motor->target_voltage = 0;
-        (void)GM6020_SendVoltage(motor, 0);
-        return 0U;
-    }
-
-    GM6020_UpdateControlLimits(motor);
-    return 1U;
 }
 
 /** @brief 初始化反馈状态、发送诊断和两级控制器参数。 */
@@ -432,7 +399,9 @@ void GM6020_ControlStep(GM6020_t *motor, uint32_t now_ms)
         return;
     }
 
-    if (!GM6020_PrepareControlStep(motor, now_ms))
+    if (motor->is_online &&
+        ((uint32_t)(now_ms - motor->last_rx_ms) >
+         motor->online_timeout_ms))
     {
         /* 反馈超时：清状态、清积分并立即输出零电压。 */
         motor->is_online = 0U;
@@ -509,76 +478,6 @@ void GM6020_ControlStep(GM6020_t *motor, uint32_t now_ms)
     motor->target_speed_rpm = target_rpm;
     motor->target_voltage =
         GM6020_ClampVoltage(motor, voltage_cmd);
-    (void)GM6020_SendVoltage(motor, motor->target_voltage);
-}
-
-void GM6020_ControlSpeedStep(GM6020_t *motor,
-                             float target_rpm,
-                             uint32_t now_ms)
-{
-    float voltage_cmd;
-
-    if (motor == NULL)
-    {
-        return;
-    }
-
-    if (!GM6020_PrepareControlStep(motor, now_ms))
-    {
-        return;
-    }
-
-    if ((target_rpm != target_rpm) ||
-        (target_rpm > FLT_MAX) ||
-        (target_rpm < -FLT_MAX))
-    {
-        target_rpm = 0.0f;
-    }
-
-    target_rpm = GM6020_ClampAbs(target_rpm,
-                                 motor->max_speed_rpm);
-    motor->target_speed_rpm = target_rpm;
-
-    voltage_cmd =
-        PidCalPosition(&motor->speed_pid,
-                       target_rpm,
-                       (float)motor->speed_rpm);
-    voltage_cmd *= (float)motor->voltage_sign;
-    voltage_cmd =
-        GM6020_ClampAbs(voltage_cmd,
-                        (float)motor->voltage_limit_raw);
-
-    motor->target_voltage = (int16_t)voltage_cmd;
-    (void)GM6020_SendVoltage(motor, motor->target_voltage);
-}
-
-void GM6020_ControlVoltageStep(GM6020_t *motor,
-                               int16_t target_voltage,
-                               uint32_t now_ms)
-{
-    int32_t limited_voltage = target_voltage;
-
-    if (motor == NULL)
-    {
-        return;
-    }
-
-    if (!GM6020_PrepareControlStep(motor, now_ms))
-    {
-        return;
-    }
-
-    if (limited_voltage > motor->voltage_limit_raw)
-    {
-        limited_voltage = motor->voltage_limit_raw;
-    }
-    else if (limited_voltage < -motor->voltage_limit_raw)
-    {
-        limited_voltage = -motor->voltage_limit_raw;
-    }
-
-    motor->target_speed_rpm = 0.0f;
-    motor->target_voltage = (int16_t)limited_voltage;
     (void)GM6020_SendVoltage(motor, motor->target_voltage);
 }
 
