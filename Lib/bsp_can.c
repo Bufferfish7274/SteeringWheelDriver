@@ -87,22 +87,21 @@ HAL_StatusTypeDef BSP_CAN_StartAcceptAll(CAN_HandleTypeDef *hcan)
 
 HAL_StatusTypeDef BSP_CAN_StartMasterFilter(
     CAN_HandleTypeDef *hcan,
-    uint8_t wheel_id)
+    uint32_t control_id,
+    uint32_t heartbeat_id)
 {
     uint32_t first_bank;
-    uint32_t control_id;
-    uint32_t heartbeat_id;
     HAL_StatusTypeDef status;
 
-    if ((hcan == NULL) || (wheel_id < 1U) || (wheel_id > 4U))
+    if ((hcan == NULL) ||
+        (control_id > 0x7FFU) ||
+        (heartbeat_id > 0x7FFU))
     {
         return HAL_ERROR;
     }
 
     /* 使用相邻两个过滤器组分别精确匹配控制帧和心跳帧。 */
     first_bank = BSP_CAN_FirstFilterBank(hcan);
-    control_id = 0x100U + wheel_id;
-    heartbeat_id = 0x110U + wheel_id;
 
     status = BSP_CAN_ConfigureStdFilter(
         hcan,

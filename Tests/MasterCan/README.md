@@ -19,7 +19,8 @@
 
 - 收到控制帧后，ERPM、角度码和目标角持续有效，不会因控制帧本身变旧而失效。
 - `control_seen` 表示本次有效链路周期内已经收到过控制目标。
-- `link_valid` 由控制帧或心跳帧维持，当前有效期为 500 ms。
+- `link_valid` 由控制帧或心跳帧维持，当前有效期由
+  `APP_MASTER_LINK_TIMEOUT_MS` 配置，默认为 500 ms。
 - 最终应用应使用 `control_seen && link_valid` 判断目标是否可执行。
 - 链路超时后清除 `control_seen`，但保留最后一次解码值供串口观察。
 - 链路恢复时，单独的心跳帧只能恢复 `link_valid`；必须收到新的控制帧才能恢复 `control_seen`。

@@ -15,7 +15,12 @@
 
 #define VESC_PACKET_SET_RPM       3U
 #define VESC_PACKET_STATUS        9U
-#define VESC_DEFAULT_TIMEOUT_MS   100U
+
+typedef struct
+{
+    uint32_t controller_id;
+    uint32_t online_timeout_ms;
+} VESC_Config_t;
 
 typedef struct
 {
@@ -43,8 +48,10 @@ typedef struct
     uint8_t last_tx_data[8];
 } VESC_t;
 
-/** @brief 初始化 VESC 上下文和默认通讯超时。 */
-void VESC_Init(VESC_t *vesc, CAN_HandleTypeDef *hcan, uint8_t controller_id);
+/** @brief 使用应用层配置初始化 VESC 上下文。 */
+void VESC_Init(VESC_t *vesc,
+               CAN_HandleTypeDef *hcan,
+               const VESC_Config_t *config);
 
 /** @brief 解析扩展状态帧 (9<<8)|controller_id。 */
 void VESC_OnRx(VESC_t *vesc, const CAN_RxHeaderTypeDef *header, const uint8_t data[8], uint32_t now_ms);

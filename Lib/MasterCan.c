@@ -1,17 +1,22 @@
 #include "MasterCan.h"
 
-/** @brief 初始化轮号、ID、命令字段和链路状态。 */
-void MasterCan_Init(MasterCan_t *master, uint8_t wheel_id)
+/** @brief 使用应用层配置初始化轮号、ID、命令字段和链路状态。 */
+void MasterCan_Init(MasterCan_t *master,
+                    const MasterCan_Config_t *config)
 {
-    if ((master == NULL) || (wheel_id < 1U) || (wheel_id > 4U))
+    if ((master == NULL) || (config == NULL) ||
+        (config->wheel_id < 1U) || (config->wheel_id > 4U) ||
+        (config->link_timeout_ms == 0U))
     {
         Error_Handler();
         return;
     }
 
-    master->wheel_id = wheel_id;
-    master->control_id = MASTER_CONTROL_ID_BASE + wheel_id;
-    master->heartbeat_id = MASTER_HEARTBEAT_ID_BASE + wheel_id;
+    master->wheel_id = (uint8_t)config->wheel_id;
+    master->control_id =
+        MASTER_CONTROL_ID_BASE + master->wheel_id;
+    master->heartbeat_id =
+        MASTER_HEARTBEAT_ID_BASE + master->wheel_id;
 
     master->drive_erpm = 0;
     master->angle_code = 0U;
@@ -19,7 +24,7 @@ void MasterCan_Init(MasterCan_t *master, uint8_t wheel_id)
 
     master->last_control_ms = 0U;
     master->last_heartbeat_ms = 0U;
-    master->link_timeout_ms = MASTER_LINK_TIMEOUT_MS;
+    master->link_timeout_ms = config->link_timeout_ms;
 
     master->control_seen = 0U;
     master->heartbeat_seen = 0U;

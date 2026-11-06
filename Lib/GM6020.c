@@ -88,21 +88,35 @@ static void GM6020_UpdateControlLimits(GM6020_t *motor)
         fabsf((float)motor->voltage_limit_raw);
 }
 
-/** @brief 初始化反馈状态、发送诊断和两级控制器参数。 */
-void GM6020_Init(GM6020_t *motor, CAN_HandleTypeDef *hcan, uint8_t id, uint16_t zero_raw, int8_t angle_sign, int8_t voltage_sign, float gear_ratio)
+/** @brief 使用应用层配置初始化反馈状态、发送诊断和两级控制器。 */
+void GM6020_Init(GM6020_t *motor,
+                 CAN_HandleTypeDef *hcan,
+                 const GM6020_Config_t *config)
 {
-    if ((motor == NULL) || (hcan == NULL) || (id < 1U) || (id > 7U))
+    if ((motor == NULL) || (hcan == NULL) || (config == NULL) ||
+        (config->id < 1U) || (config->id > 7U) ||
+        (config->zero_raw > 0x1FFFU) ||
+        ((config->angle_sign != 1) &&
+         (config->angle_sign != -1)) ||
+        ((config->voltage_sign != 1) &&
+         (config->voltage_sign != -1)) ||
+        (config->gear_ratio <= 0.0f) ||
+        (config->control_dt_s <= 0.0f) ||
+        (config->max_speed_rpm <= 0.0f) ||
+        (config->voltage_limit_raw <= 0) ||
+        (config->voltage_limit_raw > GM6020_MAX_VOLTAGE_RAW) ||
+        (config->online_timeout_ms == 0U))
     {
         Error_Handler();
+        return;
     }
 
     motor->hcan = hcan;
-    motor->id = id;
-    motor->zero_raw = (uint16_t)(zero_raw & 0x1FFFU);
-    motor->angle_sign = (angle_sign < 0) ? -1 : 1;
-    motor->voltage_sign = (voltage_sign < 0) ? -1 : 1;
-    /* 非正传动比会使角度换算失真，直接回退为直驱。 */
-    motor->gear_ratio = (gear_ratio > 0.0f) ? gear_ratio : 1.0f;
+    motor->id = (uint8_t)config->id;
+    motor->zero_raw = (uint16_t)config->zero_raw;
+    motor->angle_sign = (int8_t)config->angle_sign;
+    motor->voltage_sign = (int8_t)config->voltage_sign;
+    motor->gear_ratio = config->gear_ratio;
 
     motor->raw_angle = 0U;
     motor->angle_deg = 0.0f;
@@ -128,94 +142,30 @@ void GM6020_Init(GM6020_t *motor, CAN_HandleTypeDef *hcan, uint8_t id, uint16_t 
     motor->last_tx_voltage = 0;
     memset(motor->last_tx_data, 0, sizeof(motor->last_tx_data));
 
-    motor->max_speed_rpm = GM6020_DEFAULT_MAX_SPEED_RPM;
-    motor->voltage_limit_raw = GM6020_DEFAULT_VOLTAGE_LIMIT;
-    motor->online_timeout_ms = GM6020_DEFAULT_TIMEOUT_MS;
+    motor->max_speed_rpm = config->max_speed_rpm;
+    motor->voltage_limit_raw =
+        (int16_t)config->voltage_limit_raw;
+    motor->online_timeout_ms = config->online_timeout_ms;
 
     PidInit(&motor->position_pid,
-            GM6020_DEFAULT_POS_KP,
-            GM6020_DEFAULT_POS_KI,
-            GM6020_DEFAULT_POS_KD,
-            GM6020_DEFAULT_CONTROL_DT,
+            config->position.kp,
+            config->position.ki,
+            config->position.kd,
+            config->control_dt_s,
             motor->max_speed_rpm,
-            GM6020_DEFAULT_POS_INTEGRAL_MAX,
-            1U, /* 位置环保留积分分离，避免大角度阶段积分堆积。 */
-            GM6020_DEFAULT_POS_SEP_DEG);
+            config->position.integral_max,
+            config->position.integral_separation,
+            config->position.separation_threshold);
 
     PidInit(&motor->speed_pid,
-            GM6020_DEFAULT_SPD_KP,
-            GM6020_DEFAULT_SPD_KI,
-            GM6020_DEFAULT_SPD_KD,
-            GM6020_DEFAULT_CONTROL_DT,
+            config->speed.kp,
+            config->speed.ki,
+            config->speed.kd,
+            config->control_dt_s,
             (float)motor->voltage_limit_raw,
-            GM6020_DEFAULT_SPD_INTEGRAL_MAX,
-            0U, /* 速度积分持续工作，用于克服低速静摩擦。 */
-            GM6020_DEFAULT_SPD_SEP_RPM);
-}
-
-/**
- * @brief 用应用层配置重建两级 PID 和运行限幅。
- * @note 只能在未使能状态调用，避免运行中参数来源不一致。
- */
-HAL_StatusTypeDef GM6020_ApplyTuning(
-    GM6020_t *motor,
-    const GM6020_Tuning_t *tuning)
-{
-    float control_dt_s;
-    float max_speed_rpm;
-    int32_t voltage_limit_raw;
-    uint32_t online_timeout_ms;
-
-    if ((motor == NULL) || (tuning == NULL) ||
-        (motor->is_enabled != 0U))
-    {
-        return HAL_ERROR;
-    }
-
-    control_dt_s =
-        (tuning->control_dt_s > 0.0f)
-            ? tuning->control_dt_s
-            : GM6020_DEFAULT_CONTROL_DT;
-    max_speed_rpm = fabsf(tuning->max_speed_rpm);
-    voltage_limit_raw = (int32_t)tuning->voltage_limit_raw;
-    if (voltage_limit_raw < 0)
-    {
-        voltage_limit_raw = -voltage_limit_raw;
-    }
-    if (voltage_limit_raw > GM6020_MAX_VOLTAGE_RAW)
-    {
-        voltage_limit_raw = GM6020_MAX_VOLTAGE_RAW;
-    }
-    online_timeout_ms =
-        (tuning->online_timeout_ms > 0U)
-            ? tuning->online_timeout_ms
-            : GM6020_DEFAULT_TIMEOUT_MS;
-
-    motor->max_speed_rpm = max_speed_rpm;
-    motor->voltage_limit_raw = (int16_t)voltage_limit_raw;
-    motor->online_timeout_ms = online_timeout_ms;
-
-    PidInit(&motor->position_pid,
-            tuning->position.kp,
-            tuning->position.ki,
-            tuning->position.kd,
-            control_dt_s,
-            motor->max_speed_rpm,
-            tuning->position.integral_max,
-            tuning->position.integral_separation,
-            tuning->position.separation_threshold);
-
-    PidInit(&motor->speed_pid,
-            tuning->speed.kp,
-            tuning->speed.ki,
-            tuning->speed.kd,
-            control_dt_s,
-            (float)motor->voltage_limit_raw,
-            tuning->speed.integral_max,
-            tuning->speed.integral_separation,
-            tuning->speed.separation_threshold);
-
-    return HAL_OK;
+            config->speed.integral_max,
+            config->speed.integral_separation,
+            config->speed.separation_threshold);
 }
 
 /**

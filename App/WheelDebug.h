@@ -33,6 +33,22 @@ typedef enum
     WHEEL_DEBUG_VESC_SPEED
 } WheelDebugMode_t;
 
+/** @brief 调试固件的 Watch 默认值和台架安全边界。 */
+typedef struct
+{
+    float target_angle_deg;
+    int32_t direction_erpm;
+    float target_speed_rpm;
+    int32_t target_voltage_raw;
+    int32_t target_erpm;
+    int32_t erpm_limit;
+    uint8_t use_ramp;
+    float wave_amplitude_deg;
+    uint32_t wave_period_ms;
+    uint32_t min_period_ms;
+    float max_amplitude_deg;
+} WheelDebug_Config_t;
+
 /**
  * @brief Keil Watch 直接编辑的调试输入。
  *
@@ -79,8 +95,6 @@ typedef struct
  */
 typedef struct
 {
-    /* 调试位置模式专用的参考斜坡。 */
-    SetpointRamp_t ramp;
     /* 最近一次 AngleOpt 的最终目标和方向标志。 */
     AngleOptResult_t angle_result;
     /* 上一次已经处理过的模式，用来生成一次 mode_changed 事件。 */
@@ -99,21 +113,26 @@ typedef struct
     uint8_t ramp_active;
     /* 仅在一次控制步骤内为 1 的模式变化事件。 */
     uint8_t mode_changed;
+    /* 从 AppConfig 注入的调试安全边界。 */
+    uint32_t min_period_ms;
+    float max_amplitude_deg;
 } WheelDebugRuntime_t;
 
 /** @brief 全局调试输入，必须在 Watch 中直接修改。 */
 extern WheelDebug_t g_wheel_debug;
 
 /**
- * @brief 恢复所有 Watch 默认值并清空调试运行状态。
+ * @brief 使用应用层配置恢复 Watch 默认值并清空调试运行状态。
  * @param debug 调试输入对象。
  * @param runtime 调试运行状态；previous_mode 会同步为 DISABLED。
+ * @param config 调试默认值和台架安全边界。
  */
 void WheelDebug_Init(WheelDebug_t *debug,
-                     WheelDebugRuntime_t *runtime);
+                     WheelDebugRuntime_t *runtime,
+                     const WheelDebug_Config_t *config);
 
 /**
- * @brief 清空波形相位、AngleOpt 结果和斜坡状态。
+ * @brief 清空波形相位和 AngleOpt 结果。
  * @note 不修改 g_wheel_debug 中的目标及使能输入；使能状态由 App 管理。
  */
 void WheelDebug_ResetRuntime(WheelDebugRuntime_t *runtime);
@@ -126,11 +145,13 @@ void WheelDebug_ResetRuntime(WheelDebugRuntime_t *runtime);
  *
  * @param debug Watch 调试输入。
  * @param runtime 上一次调用的运行状态及本次输出。
+ * @param ramp 正式与调试路径共用的位置参考斜坡。
  * @param current_angle_deg GM6020 当前舵轮角，供正弦起相和 AngleOpt 使用。
- * @param dt_s 本次控制周期，秒；非正值回退为 1 ms。
+ * @param dt_s 本次控制周期，秒；必须为正值。
  */
 void WheelDebug_Update(WheelDebug_t *debug,
                        WheelDebugRuntime_t *runtime,
+                       SetpointRamp_t *ramp,
                        float current_angle_deg,
                        float dt_s);
 

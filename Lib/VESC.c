@@ -2,23 +2,28 @@
 
 #include <string.h>
 
-/** @brief 初始化状态、默认 100 ms 在线超时和发送诊断。 */
-void VESC_Init(VESC_t *vesc, CAN_HandleTypeDef *hcan, uint8_t controller_id)
+/** @brief 使用应用层配置初始化状态和发送诊断。 */
+void VESC_Init(VESC_t *vesc,
+               CAN_HandleTypeDef *hcan,
+               const VESC_Config_t *config)
 {
-    if ((vesc == NULL) || (hcan == NULL))
+    if ((vesc == NULL) || (hcan == NULL) || (config == NULL) ||
+        (config->controller_id > 0xFFU) ||
+        (config->online_timeout_ms == 0U))
     {
         Error_Handler();
+        return;
     }
 
     vesc->hcan = hcan;
-    vesc->controller_id = controller_id;
+    vesc->controller_id = (uint8_t)config->controller_id;
 
     vesc->target_erpm = 0;
     vesc->actual_erpm = 0;
     vesc->actual_current_a = 0.0f;
     vesc->duty = 0.0f;
     vesc->last_rx_ms = 0U;
-    vesc->online_timeout_ms = VESC_DEFAULT_TIMEOUT_MS;
+    vesc->online_timeout_ms = config->online_timeout_ms;
     vesc->is_online = 0U;
     vesc->is_enabled = 0U;
 

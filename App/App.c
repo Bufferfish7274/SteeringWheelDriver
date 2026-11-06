@@ -30,6 +30,76 @@
 #error "WHEEL_BUILD_DEBUG must be 0 or 1"
 #endif
 
+static const SetpointRamp_Config_t g_ramp_config =
+{
+    .max_speed_deg_s = APP_RAMP_MAX_SPEED_DEG_S,
+    .max_accel_deg_s2 = APP_RAMP_MAX_ACCEL_DEG_S2
+};
+
+static const GM6020_Config_t g_gm6020_config =
+{
+    .id = APP_GM6020_ID,
+    .zero_raw = APP_GM6020_ZERO_RAW,
+    .angle_sign = APP_GM6020_ANGLE_SIGN,
+    .voltage_sign = APP_GM6020_VOLTAGE_SIGN,
+    .gear_ratio = APP_GM6020_GEAR_RATIO,
+    .position =
+    {
+        .kp = APP_GM6020_POS_KP,
+        .ki = APP_GM6020_POS_KI,
+        .kd = APP_GM6020_POS_KD,
+        .integral_max = APP_GM6020_POS_INTEGRAL_MAX,
+        .integral_separation =
+            APP_GM6020_POS_INTEGRAL_SEPARATE,
+        .separation_threshold =
+            APP_GM6020_POS_SEPARATION_DEG
+    },
+    .speed =
+    {
+        .kp = APP_GM6020_SPEED_KP,
+        .ki = APP_GM6020_SPEED_KI,
+        .kd = APP_GM6020_SPEED_KD,
+        .integral_max = APP_GM6020_SPEED_INTEGRAL_MAX,
+        .integral_separation =
+            APP_GM6020_SPEED_INTEGRAL_SEPARATE,
+        .separation_threshold =
+            APP_GM6020_SPEED_SEPARATION_RPM
+    },
+    .control_dt_s = APP_CONTROL_DT_S,
+    .max_speed_rpm = APP_GM6020_MAX_SPEED_RPM,
+    .voltage_limit_raw = APP_GM6020_VOLTAGE_LIMIT_RAW,
+    .online_timeout_ms = APP_GM6020_ONLINE_TIMEOUT_MS
+};
+
+static const VESC_Config_t g_vesc_config =
+{
+    .controller_id = APP_VESC_CONTROLLER_ID,
+    .online_timeout_ms = APP_VESC_ONLINE_TIMEOUT_MS
+};
+
+#if !WHEEL_BUILD_DEBUG
+static const MasterCan_Config_t g_master_config =
+{
+    .wheel_id = APP_MASTER_WHEEL_ID,
+    .link_timeout_ms = APP_MASTER_LINK_TIMEOUT_MS
+};
+#else
+static const WheelDebug_Config_t g_wheel_debug_config =
+{
+    .target_angle_deg = APP_DEBUG_DEFAULT_ANGLE_DEG,
+    .direction_erpm = APP_DEBUG_DEFAULT_DIRECTION_ERPM,
+    .target_speed_rpm = APP_DEBUG_DEFAULT_SPEED_RPM,
+    .target_voltage_raw = APP_DEBUG_DEFAULT_VOLTAGE_RAW,
+    .target_erpm = APP_DEBUG_DEFAULT_TARGET_ERPM,
+    .erpm_limit = APP_DEBUG_DEFAULT_ERPM_LIMIT,
+    .use_ramp = APP_DEBUG_DEFAULT_USE_RAMP,
+    .wave_amplitude_deg = APP_DEBUG_DEFAULT_AMPLITUDE_DEG,
+    .wave_period_ms = APP_DEBUG_DEFAULT_PERIOD_MS,
+    .min_period_ms = APP_DEBUG_MIN_PERIOD_MS,
+    .max_amplitude_deg = APP_DEBUG_MAX_AMPLITUDE_DEG
+};
+#endif
+
 /**
  * @brief 计算无符号毫秒时间差。
  * @note 使用 uint32_t 减法，时间戳自然回绕后差值仍然正确。
@@ -38,6 +108,109 @@ static uint32_t App_ElapsedMs(uint32_t now_ms,
                               uint32_t timestamp_ms)
 {
     return (uint32_t)(now_ms - timestamp_ms);
+}
+
+/** @brief 校验一组 PID 配置是否完整且有限。 */
+static uint8_t App_IsValidPidConfig(
+    const GM6020_PidConfig_t *config)
+{
+    return ((config != NULL) &&
+            isfinite(config->kp) &&
+            isfinite(config->ki) &&
+            isfinite(config->kd) &&
+            (config->kp >= 0.0f) &&
+            (config->ki >= 0.0f) &&
+            (config->kd >= 0.0f) &&
+            isfinite(config->integral_max) &&
+            (config->integral_max >= 0.0f) &&
+            (config->integral_separation <= 1U) &&
+            isfinite(config->separation_threshold) &&
+            (config->separation_threshold >= 0.0f)) ? 1U : 0U;
+}
+
+/**
+ * @brief 在启动外设前校验唯一的生产配置来源。
+ *
+ * 任一项非法时直接进入 Error_Handler，模块不会再用默认值或夹紧值替代。
+ */
+static uint8_t App_IsValidConfig(void)
+{
+    if ((!isfinite(APP_CONTROL_DT_S) ||
+         (APP_CONTROL_DT_S <= 0.0f)) ||
+        (!isfinite(APP_RAMP_MAX_SPEED_DEG_S) ||
+         (APP_RAMP_MAX_SPEED_DEG_S <= 0.0f)) ||
+        (!isfinite(APP_RAMP_MAX_ACCEL_DEG_S2) ||
+         (APP_RAMP_MAX_ACCEL_DEG_S2 <= 0.0f)) ||
+        (APP_SELF_TEST_MS == 0U) ||
+        (APP_TELEMETRY_MS == 0U) ||
+        (APP_LED_UPDATE_MS == 0U) ||
+        (APP_DEBUG_HEARTBEAT_MS == 0U))
+    {
+        return 0U;
+    }
+
+    if ((g_gm6020_config.id < 1U) ||
+        (g_gm6020_config.id > 7U) ||
+        (g_gm6020_config.zero_raw > 0x1FFFU) ||
+        ((g_gm6020_config.angle_sign != 1) &&
+         (g_gm6020_config.angle_sign != -1)) ||
+        ((g_gm6020_config.voltage_sign != 1) &&
+         (g_gm6020_config.voltage_sign != -1)) ||
+        (!isfinite(g_gm6020_config.gear_ratio) ||
+         (g_gm6020_config.gear_ratio <= 0.0f)) ||
+        (!isfinite(g_gm6020_config.max_speed_rpm) ||
+         (g_gm6020_config.max_speed_rpm <= 0.0f)) ||
+        (g_gm6020_config.voltage_limit_raw <= 0) ||
+        (g_gm6020_config.voltage_limit_raw >
+         GM6020_MAX_VOLTAGE_RAW) ||
+        (g_gm6020_config.online_timeout_ms == 0U) ||
+        !App_IsValidPidConfig(&g_gm6020_config.position) ||
+        !App_IsValidPidConfig(&g_gm6020_config.speed))
+    {
+        return 0U;
+    }
+
+    if ((g_vesc_config.controller_id > 0xFFU) ||
+        (g_vesc_config.online_timeout_ms == 0U) ||
+        (!isfinite(APP_MASTER_ANGLE_SIGN) ||
+         (fabsf(APP_MASTER_ANGLE_SIGN) != 1.0f)) ||
+        !isfinite(APP_MASTER_ANGLE_OFFSET_DEG))
+    {
+        return 0U;
+    }
+
+#if WHEEL_BUILD_DEBUG
+    if ((g_wheel_debug_config.use_ramp > 1U) ||
+        (g_wheel_debug_config.erpm_limit < 0) ||
+        (g_wheel_debug_config.min_period_ms == 0U) ||
+        (g_wheel_debug_config.wave_period_ms <
+         g_wheel_debug_config.min_period_ms) ||
+        !isfinite(g_wheel_debug_config.max_amplitude_deg) ||
+        (g_wheel_debug_config.max_amplitude_deg <= 0.0f) ||
+        !isfinite(g_wheel_debug_config.wave_amplitude_deg) ||
+        (fabsf(g_wheel_debug_config.wave_amplitude_deg) >
+         g_wheel_debug_config.max_amplitude_deg) ||
+        !isfinite(g_wheel_debug_config.target_angle_deg) ||
+        !isfinite(g_wheel_debug_config.target_speed_rpm) ||
+        (fabsf(g_wheel_debug_config.target_speed_rpm) >
+         g_gm6020_config.max_speed_rpm) ||
+        (g_wheel_debug_config.target_voltage_raw >
+         g_gm6020_config.voltage_limit_raw) ||
+        (g_wheel_debug_config.target_voltage_raw <
+         -g_gm6020_config.voltage_limit_raw))
+    {
+        return 0U;
+    }
+#else
+    if ((g_master_config.wheel_id < 1U) ||
+        (g_master_config.wheel_id > 4U) ||
+        (g_master_config.link_timeout_ms == 0U))
+    {
+        return 0U;
+    }
+#endif
+
+    return 1U;
 }
 
 #if !WHEEL_BUILD_DEBUG
@@ -130,42 +303,6 @@ static void App_UpdateOnlineState(App_t *app)
          (App_ElapsedMs(app->ms,
                         app->vesc.last_rx_ms) <=
           app->vesc.online_timeout_ms)) ? 1U : 0U;
-}
-
-/**
- * @brief 把 AppConfig.h 中的标量宏组装成 GM6020 调参结构。
- *
- * 集中组装可以避免 App_Init() 直接散落大量参数赋值，也便于后续把
- * 同一组配置生成给多个舵轮对象。
- */
-static void App_BuildTuning(GM6020_Tuning_t *tuning)
-{
-    memset(tuning, 0, sizeof(*tuning));
-
-    tuning->position.kp = APP_GM6020_POS_KP;
-    tuning->position.ki = APP_GM6020_POS_KI;
-    tuning->position.kd = APP_GM6020_POS_KD;
-    tuning->position.integral_max =
-        APP_GM6020_POS_INTEGRAL_MAX;
-    tuning->position.integral_separation =
-        APP_GM6020_POS_INTEGRAL_SEPARATE;
-    tuning->position.separation_threshold =
-        APP_GM6020_POS_SEPARATION_DEG;
-
-    tuning->speed.kp = APP_GM6020_SPEED_KP;
-    tuning->speed.ki = APP_GM6020_SPEED_KI;
-    tuning->speed.kd = APP_GM6020_SPEED_KD;
-    tuning->speed.integral_max =
-        APP_GM6020_SPEED_INTEGRAL_MAX;
-    tuning->speed.integral_separation =
-        APP_GM6020_SPEED_INTEGRAL_SEPARATE;
-    tuning->speed.separation_threshold =
-        APP_GM6020_SPEED_SEPARATION_RPM;
-
-    tuning->control_dt_s = APP_GM6020_CONTROL_DT_S;
-    tuning->max_speed_rpm = APP_GM6020_MAX_SPEED_RPM;
-    tuning->voltage_limit_raw = APP_GM6020_VOLTAGE_LIMIT_RAW;
-    tuning->online_timeout_ms = APP_GM6020_ONLINE_TIMEOUT_MS;
 }
 
 #if !WHEEL_BUILD_DEBUG
@@ -279,7 +416,8 @@ static void App_ProductionControlStep(App_t *app)
         if (app->wheel_active &&
             !app->need_fresh_control)
         {
-            SetpointRamp_Update(&app->target_ramp, 0.001f);
+            SetpointRamp_Update(&app->target_ramp,
+                                APP_CONTROL_DT_S);
             GM6020_SetTargetAngle(
                 &app->gm6020,
                 SetpointRamp_GetOutput(&app->target_ramp));
@@ -334,9 +472,9 @@ static void App_DebugControlStep(App_t *app)
     App_UpdateOnlineState(app);
     WheelDebug_Update(&g_wheel_debug,
                       &app->debug_runtime,
+                      &app->target_ramp,
                       app->gm6020.angle_deg,
-                      APP_GM6020_CONTROL_DT_S);
-    app->target_ramp = app->debug_runtime.ramp;
+                      APP_CONTROL_DT_S);
     debug_enable = g_wheel_debug.enable;
 
     /* 模式变化可能改变控制层级，必须先停止所有执行器。 */
@@ -636,7 +774,8 @@ static void App_UpdateLeds(App_t *app)
 #if WHEEL_BUILD_DEBUG
     {
         uint8_t heartbeat =
-            (((app->ms / 500U) % 2U) == 0U) ? 1U : 0U;
+            (((app->ms / APP_DEBUG_HEARTBEAT_MS) % 2U) == 0U)
+                ? 1U : 0U;
         WheelDebugMode_t mode = g_wheel_debug.mode;
 
         if (WheelDebug_ModeUsesVesc(mode))
@@ -871,10 +1010,14 @@ void App_Init(App_t *app,
               TIM_HandleTypeDef *htim6,
               UART_HandleTypeDef *huart1)
 {
-    GM6020_Tuning_t tuning;
-
     if ((app == NULL) || (hcan1 == NULL) ||
         (htim6 == NULL) || (huart1 == NULL))
+    {
+        Error_Handler();
+        return;
+    }
+
+    if (!App_IsValidConfig())
     {
         Error_Handler();
         return;
@@ -900,32 +1043,23 @@ void App_Init(App_t *app,
     app->huart1 = huart1;
     app->need_fresh_control = 1U;
 
-    /* 先建立驱动默认值，再注入 AppConfig.h 的实际舵轮参数。 */
+    /* 驱动只接收一次完整配置，不在初始化后再重建控制器。 */
     GM6020_Init(&app->gm6020,
                 hcan1,
-                APP_GM6020_ID,
-                APP_GM6020_ZERO_RAW,
-                APP_GM6020_ANGLE_SIGN,
-                APP_GM6020_VOLTAGE_SIGN,
-                APP_GM6020_GEAR_RATIO);
-    App_BuildTuning(&tuning);
-    if (GM6020_ApplyTuning(&app->gm6020, &tuning) != HAL_OK)
-    {
-        Error_Handler();
-        return;
-    }
+                &g_gm6020_config);
 
     /* VESC 内部闭环由控制器负责，分控板只配置 ID 和通讯超时。 */
-    VESC_Init(&app->vesc, hcan1, APP_VESC_CONTROLLER_ID);
+    VESC_Init(&app->vesc, hcan1, &g_vesc_config);
     SetpointRamp_Init(&app->target_ramp,
                       0.0f,
-                      APP_RAMP_MAX_SPEED_DEG_S,
-                      APP_RAMP_MAX_ACCEL_DEG_S2);
+                      &g_ramp_config);
 
 #if WHEEL_BUILD_DEBUG
-    WheelDebug_Init(&g_wheel_debug, &app->debug_runtime);
+    WheelDebug_Init(&g_wheel_debug,
+                    &app->debug_runtime,
+                    &g_wheel_debug_config);
 #else
-    MasterCan_Init(&app->master, APP_MASTER_WHEEL_ID);
+    MasterCan_Init(&app->master, &g_master_config);
 #endif
 
     /* 串口中断优先级低于 1 kHz 控制中断，仅负责非阻塞发送。 */
@@ -956,7 +1090,8 @@ void App_Start(App_t *app)
 #if !WHEEL_BUILD_DEBUG
     if (BSP_CAN_StartMasterFilter(
             app->hcan2,
-            APP_MASTER_WHEEL_ID) != HAL_OK)
+            app->master.control_id,
+            app->master.heartbeat_id) != HAL_OK)
     {
         Error_Handler();
         return;

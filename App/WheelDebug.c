@@ -18,12 +18,8 @@
 #include <math.h>
 #include <stddef.h>
 
-#include "AppConfig.h"
-
-/* 调试波形硬限制，与 APP_DEBUG_DEFAULT_* 默认值相互独立。 */
+/* 调试波形数学常量；可调安全边界由 WheelDebug_Config_t 注入。 */
 #define WHEEL_DEBUG_TWO_PI 6.283185307179586f
-#define WHEEL_DEBUG_MIN_PERIOD_MS 200U
-#define WHEEL_DEBUG_MAX_AMPLITUDE_DEG 180.0f
 
 /* Watch 修改此对象；App 在 TIM6 控制步骤中读取。 */
 WheelDebug_t g_wheel_debug;
@@ -88,10 +84,6 @@ void WheelDebug_ResetRuntime(WheelDebugRuntime_t *runtime)
         return;
     }
 
-    SetpointRamp_Init(&runtime->ramp,
-                      0.0f,
-                      SETPOINT_RAMP_DEFAULT_MAX_SPEED_DEG_S,
-                      SETPOINT_RAMP_DEFAULT_MAX_ACCEL_DEG_S2);
     runtime->angle_result.target_angle_deg = 0.0f;
     runtime->angle_result.target_erpm = 0;
     runtime->angle_result.reversed = 0U;
@@ -106,30 +98,38 @@ void WheelDebug_ResetRuntime(WheelDebugRuntime_t *runtime)
 /**
  * @brief 恢复调试 Watch 默认值和安全初态。
  *
- * 初始模式固定为 DISABLED、使能为 0。目标值来自 AppConfig.h，使上电
+ * 初始模式固定为 DISABLED、使能为 0。目标值来自应用层配置，使上电
  * 后即使误操作到其他模式，也不会自动产生运动。
  */
 void WheelDebug_Init(WheelDebug_t *debug,
-                     WheelDebugRuntime_t *runtime)
+                     WheelDebugRuntime_t *runtime,
+                     const WheelDebug_Config_t *config)
 {
-    if ((debug == NULL) || (runtime == NULL))
+    if ((debug == NULL) || (runtime == NULL) ||
+        (config == NULL) ||
+        (config->min_period_ms == 0U) ||
+        (config->max_amplitude_deg <= 0.0f))
     {
         return;
     }
 
     debug->mode = WHEEL_DEBUG_DISABLED;
     debug->enable = 0U;
-    debug->target_angle_deg = APP_DEBUG_DEFAULT_ANGLE_DEG;
-    debug->direction_erpm = APP_DEBUG_DEFAULT_DIRECTION_ERPM;
-    debug->target_speed_rpm = APP_DEBUG_DEFAULT_SPEED_RPM;
-    debug->target_voltage_raw = APP_DEBUG_DEFAULT_VOLTAGE_RAW;
-    debug->target_erpm = APP_DEBUG_DEFAULT_TARGET_ERPM;
-    debug->erpm_limit = APP_DEBUG_DEFAULT_ERPM_LIMIT;
-    debug->use_ramp = APP_DEBUG_DEFAULT_USE_RAMP;
-    debug->wave_amplitude_deg = APP_DEBUG_DEFAULT_AMPLITUDE_DEG;
-    debug->wave_period_ms = APP_DEBUG_DEFAULT_PERIOD_MS;
+    debug->target_angle_deg = config->target_angle_deg;
+    debug->direction_erpm = config->direction_erpm;
+    debug->target_speed_rpm = config->target_speed_rpm;
+    debug->target_voltage_raw =
+        (int16_t)config->target_voltage_raw;
+    debug->target_erpm = config->target_erpm;
+    debug->erpm_limit = config->erpm_limit;
+    debug->use_ramp = config->use_ramp;
+    debug->wave_amplitude_deg = config->wave_amplitude_deg;
+    debug->wave_period_ms = config->wave_period_ms;
 
     WheelDebug_ResetRuntime(runtime);
+    runtime->min_period_ms = config->min_period_ms;
+    runtime->max_amplitude_deg =
+        fabsf(config->max_amplitude_deg);
     runtime->previous_mode = WHEEL_DEBUG_DISABLED;
     runtime->mode_changed = 0U;
 }
@@ -146,6 +146,7 @@ void WheelDebug_Init(WheelDebug_t *debug,
  */
 void WheelDebug_Update(WheelDebug_t *debug,
                        WheelDebugRuntime_t *runtime,
+                       SetpointRamp_t *ramp,
                        float current_angle_deg,
                        float dt_s)
 {
@@ -155,14 +156,14 @@ void WheelDebug_Update(WheelDebug_t *debug,
     uint32_t period_ms;
     float desired_angle_deg;
 
-    if ((debug == NULL) || (runtime == NULL))
+    if ((debug == NULL) || (runtime == NULL) || (ramp == NULL))
     {
         return;
     }
 
     if (dt_s <= 0.0f)
     {
-        dt_s = 0.001f;
+        return;
     }
 
     mode = debug->mode;
@@ -203,7 +204,7 @@ void WheelDebug_Update(WheelDebug_t *debug,
         runtime->sine_phase = 0.0f;
         runtime->ramp_active = use_ramp;
         runtime->initialized = 1U;
-        SetpointRamp_Reset(&runtime->ramp,
+        SetpointRamp_Reset(ramp,
                            runtime->sine_origin_deg);
         runtime->ramp_output_angle_deg =
             runtime->sine_origin_deg;
@@ -215,11 +216,11 @@ void WheelDebug_Update(WheelDebug_t *debug,
         amplitude_deg = fabsf(debug->wave_amplitude_deg);
         amplitude_deg =
             WheelDebug_ClampAbs(amplitude_deg,
-                                WHEEL_DEBUG_MAX_AMPLITUDE_DEG);
+                                runtime->max_amplitude_deg);
         period_ms = debug->wave_period_ms;
-        if (period_ms < WHEEL_DEBUG_MIN_PERIOD_MS)
+        if (period_ms < runtime->min_period_ms)
         {
-            period_ms = WHEEL_DEBUG_MIN_PERIOD_MS;
+            period_ms = runtime->min_period_ms;
         }
 
         desired_angle_deg =
@@ -255,11 +256,11 @@ void WheelDebug_Update(WheelDebug_t *debug,
     if (runtime->ramp_active != 0U)
     {
         SetpointRamp_SetDesired(
-            &runtime->ramp,
+            ramp,
             runtime->angle_result.target_angle_deg);
-        SetpointRamp_Update(&runtime->ramp, dt_s);
+        SetpointRamp_Update(ramp, dt_s);
         runtime->ramp_output_angle_deg =
-            SetpointRamp_GetOutput(&runtime->ramp);
+            SetpointRamp_GetOutput(ramp);
     }
     else
     {

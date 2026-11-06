@@ -38,7 +38,7 @@ target_angle_deg = angle_code * 360 / 16384
 
 ```text
 control_seen = 当前有效链路周期内是否收到过控制目标
-link_valid   = 控制帧或心跳是否仍在 500 ms 内
+link_valid   = 控制帧或心跳是否仍在配置的超时窗口内
 ```
 
 应用最终使用：
@@ -64,6 +64,7 @@ if (master.link_valid && master.control_seen) {
 - 只接受标准数据帧；
 - 只接受 DLC 8；
 - 错误轮号、扩展帧和远程帧会被忽略；
+- 轮号和链路超时由 `MasterCan_Config_t` 在初始化时注入；
 - 模块不配置 CAN 过滤器，也不启动 CAN。
 
 ## 测试

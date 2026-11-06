@@ -222,6 +222,22 @@ int main(void)
     App_Init(&app, &can1, NULL, &tim6, &uart1);
     App_Start(&app);
 
+    Check(fabsf(app.gm6020.position_pid.kp -
+                APP_GM6020_POS_KP) < 0.001f,
+          "GM6020 position config initialized once from AppConfig");
+    Check(fabsf(app.gm6020.speed_pid.ki -
+                APP_GM6020_SPEED_KI) < 0.001f,
+          "GM6020 speed config initialized once from AppConfig");
+    Check(fabsf(app.gm6020.position_pid.dt -
+                APP_CONTROL_DT_S) < 0.000001f,
+          "GM6020 uses the unified control period");
+    Check(fabsf(app.target_ramp.max_speed_deg_s -
+                APP_RAMP_MAX_SPEED_DEG_S) < 0.001f,
+          "target ramp uses AppConfig speed limit");
+    Check(fabsf(app.target_ramp.max_accel_deg_s2 -
+                APP_RAMP_MAX_ACCEL_DEG_S2) < 0.001f,
+          "target ramp uses AppConfig acceleration limit");
+
     Check(g_can_start_count == 1U,
           "debug build starts CAN1 only");
     Check(g_timer_start_count == 1U,

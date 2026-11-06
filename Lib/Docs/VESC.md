@@ -39,11 +39,12 @@ ExtId = (CAN_PACKET_STATUS << 8) | controller_id
 
 `VESC_ControlStep()` 应每 1 ms 调用：
 
-- 状态帧超过 100 ms 未更新：标记离线；
+- 状态帧超过配置的 `online_timeout_ms` 未更新：标记离线；
 - 离线或失能：发送 0 ERPM；
 - 在线且使能：发送当前 `target_erpm`。
 
 `VESC_Enable()` 从 0 目标开始；`VESC_Disable()` 立即发送 0 ERPM。
+控制器 ID 和在线超时由 `VESC_Config_t` 在初始化时一次注入。
 
 ## 发送诊断
 

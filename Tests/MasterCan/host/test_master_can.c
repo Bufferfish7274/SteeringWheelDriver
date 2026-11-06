@@ -6,6 +6,17 @@
 
 static uint32_t g_failures;
 
+static void InitMaster(MasterCan_t *master, uint8_t wheel_id)
+{
+    MasterCan_Config_t config =
+    {
+        .wheel_id = wheel_id,
+        .link_timeout_ms = 500U
+    };
+
+    MasterCan_Init(master, &config);
+}
+
 static void Check(int condition, const char *message)
 {
     if (!condition)
@@ -53,11 +64,11 @@ static void Test_WheelIds(void)
 {
     MasterCan_t master;
 
-    MasterCan_Init(&master, 1U);
+    InitMaster(&master, 1U);
     Check(master.control_id == 0x101U, "wheel1 control id");
     Check(master.heartbeat_id == 0x111U, "wheel1 heartbeat id");
 
-    MasterCan_Init(&master, 4U);
+    InitMaster(&master, 4U);
     Check(master.control_id == 0x104U, "wheel4 control id");
     Check(master.heartbeat_id == 0x114U, "wheel4 heartbeat id");
 }
@@ -68,7 +79,7 @@ static void Test_Decode(void)
     CAN_RxHeaderTypeDef header;
     uint8_t data[8];
 
-    MasterCan_Init(&master, 1U);
+    InitMaster(&master, 1U);
     MasterCan_Update(&master, 0U);
     Check(master.control_seen == 0U, "no control before first frame");
     Check(master.link_valid == 0U, "no link before first frame");
@@ -103,7 +114,7 @@ static void Test_InputValidation(void)
     CAN_RxHeaderTypeDef header;
     uint8_t data[8] = {0};
 
-    MasterCan_Init(&master, 1U);
+    InitMaster(&master, 1U);
 
     header = MakeHeader(0x102U);
     MasterCan_OnRx(&master, &header, data, 100U);
@@ -131,7 +142,7 @@ static void Test_TimeoutAndHeartbeat(void)
     CAN_RxHeaderTypeDef header;
     uint8_t data[8];
 
-    MasterCan_Init(&master, 2U);
+    InitMaster(&master, 2U);
     MakeControlData(data, 100, 0);
     header = MakeHeader(0x102U);
     MasterCan_OnRx(&master, &header, data, 100U);
@@ -151,7 +162,7 @@ static void Test_TimeoutAndHeartbeat(void)
     Check(master.drive_erpm == 100,
           "link expiry preserves last decoded ERPM");
 
-    MasterCan_Init(&master, 2U);
+    InitMaster(&master, 2U);
     header = MakeHeader(0x112U);
     MasterCan_OnRx(&master, &header, data, 100U);
     Check(master.link_valid == 1U, "heartbeat alone keeps link");
@@ -197,7 +208,7 @@ static void Test_TimeWrap(void)
     CAN_RxHeaderTypeDef header;
     uint8_t data[8];
 
-    MasterCan_Init(&master, 1U);
+    InitMaster(&master, 1U);
     MakeControlData(data, 0, 0);
     header = MakeHeader(0x101U);
     MasterCan_OnRx(&master, &header, data, 0xFFFFFFF0U);
@@ -212,6 +223,22 @@ static void Test_TimeWrap(void)
     Check(master.control_seen == 0U, "time wrap clears control");
 }
 
+static void Test_ConfigValidation(void)
+{
+    MasterCan_t master;
+    MasterCan_Config_t config =
+    {
+        .wheel_id = 5U,
+        .link_timeout_ms = 500U
+    };
+    uint32_t failures_before = g_failures;
+
+    MasterCan_Init(&master, &config);
+    Check(g_failures == failures_before + 1U,
+          "wheel ID above protocol range is rejected");
+    g_failures = failures_before;
+}
+
 int main(void)
 {
     Test_WheelIds();
@@ -219,6 +246,7 @@ int main(void)
     Test_InputValidation();
     Test_TimeoutAndHeartbeat();
     Test_TimeWrap();
+    Test_ConfigValidation();
 
     if (g_failures != 0U)
     {

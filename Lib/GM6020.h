@@ -20,23 +20,7 @@
 #define GM6020_RAW_PER_REV              8192.0f
 #define GM6020_DEG_PER_REV              360.0f
 
-#define GM6020_DEFAULT_CONTROL_DT       0.001f
-#define GM6020_DEFAULT_MAX_SPEED_RPM    300.0f
-#define GM6020_DEFAULT_VOLTAGE_LIMIT    20000
 #define GM6020_MAX_VOLTAGE_RAW          25000
-#define GM6020_DEFAULT_TIMEOUT_MS       20U
-
-#define GM6020_DEFAULT_POS_KP           20.0f
-#define GM6020_DEFAULT_POS_KI           2.0f
-#define GM6020_DEFAULT_POS_KD           0.1f
-#define GM6020_DEFAULT_POS_INTEGRAL_MAX 50.0f
-#define GM6020_DEFAULT_POS_SEP_DEG      10.0f
-
-#define GM6020_DEFAULT_SPD_KP           70.0f
-#define GM6020_DEFAULT_SPD_KI           50.0f
-#define GM6020_DEFAULT_SPD_KD           0.0f
-#define GM6020_DEFAULT_SPD_INTEGRAL_MAX 8000.0f
-#define GM6020_DEFAULT_SPD_SEP_RPM      100.0f
 
 typedef enum
 {
@@ -53,17 +37,23 @@ typedef struct
     float integral_max;
     uint8_t integral_separation;
     float separation_threshold;
-} GM6020_PidTuning_t;
+} GM6020_PidConfig_t;
 
 typedef struct
 {
-    GM6020_PidTuning_t position;
-    GM6020_PidTuning_t speed;
+    uint32_t id;
+    uint32_t zero_raw;
+    int32_t angle_sign;
+    int32_t voltage_sign;
+    float gear_ratio;
+
+    GM6020_PidConfig_t position;
+    GM6020_PidConfig_t speed;
     float control_dt_s;
     float max_speed_rpm;
-    int16_t voltage_limit_raw;
+    int32_t voltage_limit_raw;
     uint32_t online_timeout_ms;
-} GM6020_Tuning_t;
+} GM6020_Config_t;
 
 typedef struct
 {
@@ -112,28 +102,16 @@ typedef struct
 } GM6020_t;
 
 /**
- * @brief 初始化 GM6020 上下文、默认限幅和两级 PID。
- * @param id GM6020 ID，范围 1..7。
- * @param zero_raw 机械零位对应的原始角，自动限制到 13 位范围。
- * @param angle_sign 编码器角度正方向，传入负值会规范化为 -1。
- * @param voltage_sign 电压正方向，传入负值会规范化为 -1。
- * @param gear_ratio 电机转数/舵轮转数；非正值回退为 1.0。
+ * @brief 使用应用层配置初始化 GM6020 上下文和两级 PID。
+ * @param motor 待初始化的电机上下文。
+ * @param hcan 本地电机 CAN 句柄。
+ * @param config 完整配置；所有值在本次调用中一次生效。
+ * @note ID 必须为 1..7，方向必须为 +1/-1，周期、传动比、
+ *       运行限幅和超时必须是有效的正值。
  */
 void GM6020_Init(GM6020_t *motor,
                  CAN_HandleTypeDef *hcan,
-                 uint8_t id,
-                 uint16_t zero_raw,
-                 int8_t angle_sign,
-                 int8_t voltage_sign,
-                 float gear_ratio);
-
-/**
- * @brief 在电机尚未使能时应用应用层调参。
- * @return HAL_OK 表示参数已应用；HAL_ERROR 表示参数为空或电机正在使能。
- */
-HAL_StatusTypeDef GM6020_ApplyTuning(
-    GM6020_t *motor,
-    const GM6020_Tuning_t *tuning);
+                 const GM6020_Config_t *config);
 
 /**
  * @brief 解析一帧 GM6020 反馈并更新时间戳和在线状态。

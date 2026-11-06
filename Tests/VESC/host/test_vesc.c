@@ -11,6 +11,17 @@ static uint32_t g_tx_count;
 static HAL_StatusTypeDef g_tx_result = HAL_OK;
 static uint32_t g_failures;
 
+static void InitVesc(VESC_t *vesc, CAN_HandleTypeDef *hcan)
+{
+    VESC_Config_t config =
+    {
+        .controller_id = 67U,
+        .online_timeout_ms = 100U
+    };
+
+    VESC_Init(vesc, hcan, &config);
+}
+
 void Error_Handler(void)
 {
     g_failures++;
@@ -79,7 +90,7 @@ static void Test_StatusDecode(void)
     CAN_RxHeaderTypeDef header;
     uint8_t data[8];
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(&vesc, &can1);
     MakeStatusHeader(&header);
     EncodeInt32(&data[0], -123456);
     EncodeInt16(&data[4], -123);
@@ -123,7 +134,7 @@ static void Test_TimeoutBoundary(void)
     CAN_RxHeaderTypeDef header;
     uint8_t data[8] = {0};
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(&vesc, &can1);
     MakeStatusHeader(&header);
     VESC_OnRx(&vesc, &header, data, 0U);
     VESC_Enable(&vesc);
@@ -150,7 +161,7 @@ static void Test_TxPacket(void)
     uint8_t data[8] = {0};
     uint32_t before;
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(&vesc, &can1);
     MakeStatusHeader(&status);
     VESC_OnRx(&vesc, &status, data, 1U);
     VESC_Enable(&vesc);
@@ -180,7 +191,7 @@ static void Test_DisableAndCounters(void)
     CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
     uint32_t before;
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(&vesc, &can1);
     g_tx_result = HAL_BUSY;
     before = vesc.tx_busy_count;
     Check(VESC_SendErpm(&vesc, 100) == HAL_BUSY,
@@ -199,12 +210,30 @@ static void Test_DisableAndCounters(void)
           "disable sends zero ERPM");
 }
 
+static void Test_ConfigValidation(void)
+{
+    VESC_t vesc;
+    CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
+    VESC_Config_t config =
+    {
+        .controller_id = 256U,
+        .online_timeout_ms = 100U
+    };
+    uint32_t failures_before = g_failures;
+
+    VESC_Init(&vesc, &can1, &config);
+    Check(g_failures == failures_before + 1U,
+          "controller ID above 255 is rejected");
+    g_failures = failures_before;
+}
+
 int main(void)
 {
     Test_StatusDecode();
     Test_TimeoutBoundary();
     Test_TxPacket();
     Test_DisableAndCounters();
+    Test_ConfigValidation();
 
     if (g_failures != 0U)
     {

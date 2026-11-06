@@ -57,7 +57,8 @@ GM6020 在该模式下保持失能零输出。
 
 - 初始模式为 `DISABLED`，初始使能为 0；
 - 模式切换会立即发送 0 ERPM 并清除使能；
-- 超过 100 ms 未收到 ID 67 的有效状态帧时，App 清除调试使能、发送 0 ERPM，并要求重新手动使能；
+- 超过 `APP_VESC_ONLINE_TIMEOUT_MS` 未收到 ID 67 的有效状态帧时，App
+  清除调试使能、发送 0 ERPM，并要求重新手动使能；
 - VESC 自身同时配置了 100 ms 通讯超时；
 - VESC 离线时 PB5 熄灭，驱动使能时 PB6 点亮；
 - 默认 `1000 ERPM` 是首次台架安全上限，不代表电机最终允许转速，确认方向和安全空间后再调整。
@@ -87,7 +88,7 @@ powershell -ExecutionPolicy Bypass -File .\Tests\VESC\host\run.ps1
 - ID 67 的状态帧扩展 ID；
 - 有符号 ERPM、电流和占空比解码；
 - 错误控制器 ID、标准帧和错误周期帧过滤；
-- 100 ms/101 ms 超时边界；
+- 配置的 100 ms/101 ms 超时边界；
 - 离线或失能时发送 0 ERPM；
 - `SET_RPM` 的扩展 ID、DLC、大端数据和尾部零字节；
 - TX 忙计数和失能清零。

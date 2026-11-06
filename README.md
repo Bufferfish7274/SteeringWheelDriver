@@ -3,15 +3,14 @@
 基于 STM32F405RGT6 的单舵轮控制固件。分控板通过 CAN2 接收主控目标，
 通过 CAN1 控制 GM6020 舵向电机和 VESC 轮向驱动，并输出 UART 调试遥测。
 
-2.0 设计思路、功能范围和版本边界见
-[Docs/Design-v2.0.md](Docs/Design-v2.0.md)。1.0 历史设计见
-[Docs/Design-v1.0.md](Docs/Design-v1.0.md)。
+2.0 设计思路、功能范围和版本边界见[Docs/Design-v2.0.md](Docs/Design-v2.0.md)。
+1.0 历史设计见[Docs/Design-v1.0.md](Docs/Design-v1.0.md)。
 
 ## 系统结构
 
 ```text
 主控板
-  │ CAN2：0x101 控制 / 0x111 心跳
+  │ CAN2：0x10+轮号 控制 / 0x11+轮号 心跳
   ▼
 舵轮分控板
   ├─ App：组合对象、安全状态机、构建模式调度

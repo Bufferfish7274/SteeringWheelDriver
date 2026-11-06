@@ -16,7 +16,8 @@
 HAL_StatusTypeDef BSP_CAN_StartAcceptAll(CAN_HandleTypeDef *hcan);
 HAL_StatusTypeDef BSP_CAN_StartMasterFilter(
     CAN_HandleTypeDef *hcan,
-    uint8_t wheel_id);
+    uint32_t control_id,
+    uint32_t heartbeat_id);
 ```
 
 ### `BSP_CAN_StartAcceptAll`
@@ -30,14 +31,15 @@ HAL_StatusTypeDef BSP_CAN_StartMasterFilter(
 
 ### `BSP_CAN_StartMasterFilter`
 
-配置两个精确匹配的标准 ID：
+配置两个精确匹配的标准 ID。ID 由 `MasterCan_t` 根据本轮配置生成后
+传入，低层 CAN 模块不重复定义轮号到协议的映射：
 
 ```text
-0x100 + wheel_id   控制帧
-0x110 + wheel_id   心跳帧
+control_id     控制帧
+heartbeat_id   心跳帧
 ```
 
-CAN1 使用 bank 0/1，CAN2 使用 bank 14/15。`wheel_id` 当前限制为 `1..4`。
+CAN1 使用 bank 0/1，CAN2 使用 bank 14/15。
 
 ## 过滤器位数
 
@@ -56,7 +58,7 @@ MX_CAN1_Init();
 MX_CAN2_Init();
 
 BSP_CAN_StartAcceptAll(&hcan1);
-BSP_CAN_StartMasterFilter(&hcan2, 1U);
+BSP_CAN_StartMasterFilter(&hcan2, 0x101U, 0x111U);
 
 HAL_TIM_Base_Start_IT(&htim6);
 ```

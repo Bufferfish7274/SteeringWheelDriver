@@ -15,7 +15,6 @@
  */
 
 #include "main.h"
-#include "setpoint_ramp.h"
 
 /*
  * 单一构建目标内的调试开关。
@@ -62,14 +61,16 @@
 #define APP_GM6020_SPEED_INTEGRAL_SEPARATE 0U
 #define APP_GM6020_SPEED_SEPARATION_RPM  100.0f
 
-#define APP_GM6020_CONTROL_DT_S          0.001f
+#define APP_CONTROL_DT_S                 0.001f
 #define APP_GM6020_MAX_SPEED_RPM         300.0f
 #define APP_GM6020_VOLTAGE_LIMIT_RAW     20000
 #define APP_GM6020_ONLINE_TIMEOUT_MS     20U
+#define APP_VESC_ONLINE_TIMEOUT_MS       100U
+#define APP_MASTER_LINK_TIMEOUT_MS       500U
 
 /* GM6020 位置参考的速度和加速度上限。 */
-#define APP_RAMP_MAX_SPEED_DEG_S         SETPOINT_RAMP_DEFAULT_MAX_SPEED_DEG_S
-#define APP_RAMP_MAX_ACCEL_DEG_S2        SETPOINT_RAMP_DEFAULT_MAX_ACCEL_DEG_S2
+#define APP_RAMP_MAX_SPEED_DEG_S         790.0f
+#define APP_RAMP_MAX_ACCEL_DEG_S2        4000.0f
 
 /*
  * WHEEL_BUILD_DEBUG=1 时写入 g_wheel_debug 的初始值。
@@ -84,11 +85,14 @@
 #define APP_DEBUG_DEFAULT_USE_RAMP       1U
 #define APP_DEBUG_DEFAULT_AMPLITUDE_DEG  30.0f
 #define APP_DEBUG_DEFAULT_PERIOD_MS      4000U
+#define APP_DEBUG_MIN_PERIOD_MS          200U
+#define APP_DEBUG_MAX_AMPLITUDE_DEG      180.0f
 
 /* 自检、LED 和串口遥测周期。 */
 #define APP_SELF_TEST_MS                 500U
 #define APP_TELEMETRY_MS                 20U
 #define APP_LED_UPDATE_MS                10U
+#define APP_DEBUG_HEARTBEAT_MS           500U
 
 #define APP_LED_MASTER_PIN               GPIO_PIN_4
 #define APP_LED_VESC_PIN                 GPIO_PIN_5

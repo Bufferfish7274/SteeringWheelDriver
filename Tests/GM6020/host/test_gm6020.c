@@ -20,6 +20,60 @@ static uint32_t g_call_order_len;
 
 static uint32_t g_failures;
 
+static GM6020_Config_t MakeConfig(void)
+{
+    GM6020_Config_t config =
+    {
+        .id = 1U,
+        .zero_raw = 0U,
+        .angle_sign = 1,
+        .voltage_sign = 1,
+        .gear_ratio = 1.0f,
+        .position =
+        {
+            .kp = 20.0f,
+            .ki = 2.0f,
+            .kd = 0.1f,
+            .integral_max = 50.0f,
+            .integral_separation = 1U,
+            .separation_threshold = 10.0f
+        },
+        .speed =
+        {
+            .kp = 70.0f,
+            .ki = 50.0f,
+            .kd = 0.0f,
+            .integral_max = 8000.0f,
+            .integral_separation = 0U,
+            .separation_threshold = 100.0f
+        },
+        .control_dt_s = 0.001f,
+        .max_speed_rpm = 300.0f,
+        .voltage_limit_raw = 20000,
+        .online_timeout_ms = 20U
+    };
+
+    return config;
+}
+
+static void InitMotor(GM6020_t *motor,
+                      CAN_HandleTypeDef *hcan,
+                      uint8_t id,
+                      uint16_t zero_raw,
+                      int8_t angle_sign,
+                      int8_t voltage_sign,
+                      float gear_ratio)
+{
+    GM6020_Config_t config = MakeConfig();
+
+    config.id = id;
+    config.zero_raw = zero_raw;
+    config.angle_sign = angle_sign;
+    config.voltage_sign = voltage_sign;
+    config.gear_ratio = gear_ratio;
+    GM6020_Init(motor, hcan, &config);
+}
+
 static void Test_RecordCall(char call)
 {
     if (g_call_order_len < (sizeof(g_call_order) - 1U))
@@ -124,7 +178,7 @@ static void Test_FeedbackAndTimeout(void)
         25U, 0U
     };
 
-    GM6020_Init(&motor, &can1, 1U, 1000U, 1, 1, 1.0f);
+    InitMotor(&motor, &can1, 1U, 1000U, 1, 1, 1.0f);
 
     header.StdId = 0x205U;
     header.IDE = CAN_ID_STD;
@@ -160,7 +214,7 @@ static void Test_VoltagePacking(void)
     GM6020_t motor;
     CAN_HandleTypeDef can1 = {CAN1};
 
-    GM6020_Init(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
+    InitMotor(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
     Check(GM6020_SendVoltage(&motor, 1234) == HAL_OK,
           "ID1 send");
     Check(g_last_tx_header.StdId == 0x1FFU,
@@ -185,7 +239,7 @@ static void Test_VoltagePacking(void)
           (motor.last_tx_data[1] == 0xD2U),
           "last TX data recorded");
 
-    GM6020_Init(&motor, &can1, 5U, 0U, 1, 1, 1.0f);
+    InitMotor(&motor, &can1, 5U, 0U, 1, 1, 1.0f);
     Check(GM6020_SendVoltage(&motor, 1234) == HAL_OK,
           "ID5 send");
     Check(g_last_tx_header.StdId == 0x2FFU,
@@ -204,7 +258,7 @@ static void Test_ControlIntegralPolicy(void)
     int16_t initial_voltage;
     uint32_t i;
 
-    GM6020_Init(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
+    InitMotor(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
 
     Check(motor.position_pid.integral_separation == 1U,
           "position integral separation remains enabled");
@@ -234,7 +288,7 @@ static void Test_ControlIntegralPolicy(void)
     Check(motor.target_voltage == 5000,
           "speed output is limited to active voltage limit");
 
-    GM6020_Init(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
+    InitMotor(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
     motor.is_online = 1U;
     motor.is_enabled = 1U;
     motor.target_angle_deg = 4.5f;
@@ -261,39 +315,38 @@ static void Test_ControlIntegralPolicy(void)
           "voltage continues increasing at standstill");
 }
 
-static void Test_TuningAndControlModes(void)
+static void Test_ConfigAndControlModes(void)
 {
     GM6020_t motor;
     CAN_HandleTypeDef can1 = {CAN1};
-    GM6020_Tuning_t tuning = {0};
+    GM6020_Config_t config = MakeConfig();
 
-    GM6020_Init(&motor, &can1, 1U, 0U, 1, -1, 1.0f);
+    config.voltage_sign = -1;
+    config.position.kp = 12.0f;
+    config.position.ki = 1.0f;
+    config.position.kd = 0.2f;
+    config.position.integral_max = 40.0f;
+    config.position.integral_separation = 1U;
+    config.position.separation_threshold = 8.0f;
+    config.speed.kp = 60.0f;
+    config.speed.ki = 30.0f;
+    config.speed.kd = 0.0f;
+    config.speed.integral_max = 4000.0f;
+    config.speed.integral_separation = 0U;
+    config.speed.separation_threshold = 100.0f;
+    config.control_dt_s = 0.001f;
+    config.max_speed_rpm = 250.0f;
+    config.voltage_limit_raw = 5000;
+    config.online_timeout_ms = 15U;
 
-    tuning.position.kp = 12.0f;
-    tuning.position.ki = 1.0f;
-    tuning.position.kd = 0.2f;
-    tuning.position.integral_max = 40.0f;
-    tuning.position.integral_separation = 1U;
-    tuning.position.separation_threshold = 8.0f;
-    tuning.speed.kp = 60.0f;
-    tuning.speed.ki = 30.0f;
-    tuning.speed.kd = 0.0f;
-    tuning.speed.integral_max = 4000.0f;
-    tuning.speed.integral_separation = 0U;
-    tuning.speed.separation_threshold = 100.0f;
-    tuning.control_dt_s = 0.001f;
-    tuning.max_speed_rpm = 250.0f;
-    tuning.voltage_limit_raw = 5000;
-    tuning.online_timeout_ms = 15U;
+    GM6020_Init(&motor, &can1, &config);
 
-    Check(GM6020_ApplyTuning(&motor, &tuning) == HAL_OK,
-          "tuning applies while disabled");
     Check(fabsf(motor.position_pid.kp - 12.0f) < 0.001f,
-          "position tuning applied");
+          "position config applied during init");
     Check(fabsf(motor.speed_pid.ki - 30.0f) < 0.001f,
-          "speed tuning applied");
+          "speed config applied during init");
     Check(motor.online_timeout_ms == 15U,
-          "timeout tuning applied");
+          "timeout config applied during init");
 
     motor.is_online = 1U;
     motor.angle_deg = 0.0f;
@@ -301,9 +354,6 @@ static void Test_TuningAndControlModes(void)
     motor.last_rx_ms = 100U;
     GM6020_Enable(&motor);
     Check(motor.is_enabled == 1U, "online motor enables");
-
-    Check(GM6020_ApplyTuning(&motor, &tuning) == HAL_ERROR,
-          "tuning rejected while enabled");
 
     GM6020_SetControlMode(&motor, GM6020_CONTROL_SPEED);
     Check(motor.is_enabled == 0U,
@@ -352,7 +402,7 @@ static void Test_ControlModeTimeouts(void)
 
     for (i = 0U; i < 3U; i++)
     {
-        GM6020_Init(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
+        InitMotor(&motor, &can1, 1U, 0U, 1, 1, 1.0f);
         motor.is_online = 1U;
         motor.last_rx_ms = 10U;
         motor.angle_deg = 0.0f;
@@ -407,7 +457,7 @@ static void Test_BspCan(void)
     Check(strcmp(g_call_order, "FSN") == 0,
           "filter/start/notify order");
 
-    Check(BSP_CAN_StartMasterFilter(&can2, 1U) == HAL_OK,
+    Check(BSP_CAN_StartMasterFilter(&can2, 0x101U, 0x111U) == HAL_OK,
           "master filter start");
     Check(g_filter_count == 3U, "master filter count");
     Check(g_filters[1].FilterBank == 14U,
@@ -424,15 +474,39 @@ static void Test_BspCan(void)
           "start and notify called once per bus");
 }
 
+static void Test_ConfigValidation(void)
+{
+    GM6020_t motor;
+    CAN_HandleTypeDef can1 = {CAN1};
+    GM6020_Config_t config = MakeConfig();
+    uint32_t failures_before;
+
+    config.control_dt_s = 0.0f;
+    failures_before = g_failures;
+    GM6020_Init(&motor, &can1, &config);
+    Check(g_failures == failures_before + 1U,
+          "zero control period is rejected");
+    g_failures = failures_before;
+
+    config = MakeConfig();
+    config.voltage_limit_raw = GM6020_MAX_VOLTAGE_RAW + 1;
+    failures_before = g_failures;
+    GM6020_Init(&motor, &can1, &config);
+    Check(g_failures == failures_before + 1U,
+          "voltage limit above hardware maximum is rejected");
+    g_failures = failures_before;
+}
+
 int main(void)
 {
     Test_Wrap180();
     Test_FeedbackAndTimeout();
     Test_VoltagePacking();
     Test_ControlIntegralPolicy();
-    Test_TuningAndControlModes();
+    Test_ConfigAndControlModes();
     Test_ControlModeTimeouts();
     Test_BspCan();
+    Test_ConfigValidation();
 
     if (g_failures != 0U)
     {

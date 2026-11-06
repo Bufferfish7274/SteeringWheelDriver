@@ -41,33 +41,19 @@ static float SetpointRamp_Clamp(float value, float limit)
     return value;
 }
 
-/**
- * @brief 初始化斜坡。
- * @note 非正速度和加速度会回退到头文件默认值，避免除零或零速度死锁。
- */
+/** @brief 使用应用层配置初始化斜坡，不提供隐式默认值。 */
 void SetpointRamp_Init(SetpointRamp_t *ramp,
                        float initial_angle_deg,
-                       float max_speed_deg_s,
-                       float max_accel_deg_s2)
+                       const SetpointRamp_Config_t *config)
 {
-    if (ramp == NULL)
+    if ((ramp == NULL) || (config == NULL))
     {
         return;
     }
 
-    ramp->max_speed_deg_s = fabsf(max_speed_deg_s);
-    if (ramp->max_speed_deg_s <= 0.0f)
-    {
-        ramp->max_speed_deg_s =
-            SETPOINT_RAMP_DEFAULT_MAX_SPEED_DEG_S;
-    }
-
-    ramp->max_accel_deg_s2 = fabsf(max_accel_deg_s2);
-    if (ramp->max_accel_deg_s2 <= 0.0f)
-    {
-        ramp->max_accel_deg_s2 =
-            SETPOINT_RAMP_DEFAULT_MAX_ACCEL_DEG_S2;
-    }
+    ramp->max_speed_deg_s = fabsf(config->max_speed_deg_s);
+    ramp->max_accel_deg_s2 =
+        fabsf(config->max_accel_deg_s2);
 
     ramp->desired_angle_deg =
         SetpointRamp_Wrap360(initial_angle_deg);

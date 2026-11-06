@@ -52,7 +52,11 @@ g_wheel_debug.enable = 1
 - `direction_erpm=0` 时仍选择距离当前舵向更近的物理候选，可能把目标角
   改到反向朝向；
 - `use_ramp=1` 时目标先经过位置斜坡，0 时直接进入位置环；
-- 正弦模式下 `wave_amplitude_deg` 限制到 `0..180°`，周期不小于 200 ms。
+- 正弦模式下 `wave_amplitude_deg` 限制到
+  `APP_DEBUG_MAX_AMPLITUDE_DEG`，周期不小于
+  `APP_DEBUG_MIN_PERIOD_MS`；
+- 调试位置模式和正式控制共用 `g_app.target_ramp`，斜坡参数只来自
+  `APP_RAMP_*`。
 
 ## GM6020 正弦和速度
 

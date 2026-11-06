@@ -11,10 +11,14 @@
  * 速度单位为 °/s，加速度单位为 °/s²。
  */
 
-#define SETPOINT_RAMP_DEFAULT_MAX_SPEED_DEG_S   790.0f
-#define SETPOINT_RAMP_DEFAULT_MAX_ACCEL_DEG_S2  4000.0f
 #define SETPOINT_RAMP_ANGLE_EPS_DEG             0.05f
 #define SETPOINT_RAMP_VEL_EPS_DEG_S             0.5f
+
+typedef struct
+{
+    float max_speed_deg_s;
+    float max_accel_deg_s2;
+} SetpointRamp_Config_t;
 
 typedef struct
 {
@@ -28,11 +32,10 @@ typedef struct
     float max_accel_deg_s2;
 } SetpointRamp_t;
 
-/** @brief 初始化斜坡起点、速度上限和加速度上限。 */
+/** @brief 使用显式配置初始化斜坡起点、速度上限和加速度上限。 */
 void SetpointRamp_Init(SetpointRamp_t *ramp,
                        float initial_angle_deg,
-                       float max_speed_deg_s,
-                       float max_accel_deg_s2);
+                       const SetpointRamp_Config_t *config);
 
 /** @brief 把斜坡输出重置到当前实际角，同时清零速度。 */
 void SetpointRamp_Reset(SetpointRamp_t *ramp,

@@ -6,6 +6,18 @@
 
 static uint32_t g_failures;
 
+static SetpointRamp_Config_t MakeConfig(float max_speed_deg_s,
+                                        float max_accel_deg_s2)
+{
+    SetpointRamp_Config_t config =
+    {
+        .max_speed_deg_s = max_speed_deg_s,
+        .max_accel_deg_s2 = max_accel_deg_s2
+    };
+
+    return config;
+}
+
 static float Wrap180(float angle)
 {
     while (angle >= 180.0f) angle -= 360.0f;
@@ -80,11 +92,11 @@ static RampRun_t RunRamp(SetpointRamp_t *ramp,
 static void Test_InitialAndReset(void)
 {
     SetpointRamp_t ramp;
+    SetpointRamp_Config_t config = MakeConfig(790.0f, 4000.0f);
 
     SetpointRamp_Init(&ramp,
                       350.0f,
-                      SETPOINT_RAMP_DEFAULT_MAX_SPEED_DEG_S,
-                      SETPOINT_RAMP_DEFAULT_MAX_ACCEL_DEG_S2);
+                      &config);
     Check(fabsf(ramp.output_angle_deg - 350.0f) < 0.001f,
           "initial output angle");
     Check(fabsf(ramp.desired_angle_deg - 350.0f) < 0.001f,
@@ -103,8 +115,9 @@ static void Test_SmallStep(void)
 {
     SetpointRamp_t ramp;
     RampRun_t run;
+    SetpointRamp_Config_t config = MakeConfig(120.0f, 600.0f);
 
-    SetpointRamp_Init(&ramp, 0.0f, 120.0f, 600.0f);
+    SetpointRamp_Init(&ramp, 0.0f, &config);
     run = RunRamp(&ramp, 5.0f, 0.001f, 2000U);
 
     Check(fabsf(ramp.output_angle_deg - 5.0f) < 0.1f,
@@ -120,8 +133,9 @@ static void Test_MediumStep(void)
 {
     SetpointRamp_t ramp;
     RampRun_t run;
+    SetpointRamp_Config_t config = MakeConfig(120.0f, 600.0f);
 
-    SetpointRamp_Init(&ramp, 0.0f, 120.0f, 600.0f);
+    SetpointRamp_Init(&ramp, 0.0f, &config);
     run = RunRamp(&ramp, 30.0f, 0.001f, 3000U);
 
     Check(fabsf(ramp.output_angle_deg - 30.0f) < 0.1f,
@@ -137,8 +151,9 @@ static void Test_LargeStep(void)
 {
     SetpointRamp_t ramp;
     RampRun_t run;
+    SetpointRamp_Config_t config = MakeConfig(120.0f, 600.0f);
 
-    SetpointRamp_Init(&ramp, 0.0f, 120.0f, 600.0f);
+    SetpointRamp_Init(&ramp, 0.0f, &config);
     run = RunRamp(&ramp, 100.0f, 0.001f, 3000U);
 
     Check(fabsf(ramp.output_angle_deg - 100.0f) < 0.1f,
@@ -154,8 +169,9 @@ static void Test_WrapShortestPath(void)
 {
     SetpointRamp_t ramp;
     RampRun_t run;
+    SetpointRamp_Config_t config = MakeConfig(120.0f, 600.0f);
 
-    SetpointRamp_Init(&ramp, 359.0f, 120.0f, 600.0f);
+    SetpointRamp_Init(&ramp, 359.0f, &config);
     run = RunRamp(&ramp, 1.0f, 0.001f, 1000U);
 
     Check(fabsf(Wrap180(ramp.output_angle_deg - 1.0f)) < 0.1f,
@@ -170,9 +186,10 @@ static void Test_TargetChange(void)
 {
     SetpointRamp_t ramp;
     RampRun_t run;
+    SetpointRamp_Config_t config = MakeConfig(120.0f, 600.0f);
     uint32_t i;
 
-    SetpointRamp_Init(&ramp, 0.0f, 120.0f, 600.0f);
+    SetpointRamp_Init(&ramp, 0.0f, &config);
     SetpointRamp_SetDesired(&ramp, 90.0f);
     for (i = 0U; i < 300U; i++)
     {

@@ -46,7 +46,7 @@ typedef struct Pids
 
 /**
  * @brief 初始化 PID 参数并清空运行状态。
- * @param dt 控制周期，单位秒；非正值回退为 0.001 s。
+ * @param dt 控制周期，单位秒；调用者必须传入正值。
  * @param output_max 输出绝对值限幅，内部取绝对值。
  * @param integral_max 积分项绝对值限幅，内部取绝对值。
  * @param integral_separation 非 0 时启用积分分离。

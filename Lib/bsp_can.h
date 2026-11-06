@@ -25,14 +25,15 @@
 HAL_StatusTypeDef BSP_CAN_StartAcceptAll(CAN_HandleTypeDef *hcan);
 
 /**
- * @brief 只接收指定轮号的控制帧和心跳帧，然后启动 CAN。
+ * @brief 只接收指定控制帧和心跳帧，然后启动 CAN。
  * @param hcan 已初始化的 CAN 句柄。
- * @param wheel_id 轮号，当前协议允许 1..4。
+ * @param control_id 主控控制帧标准 ID。
+ * @param heartbeat_id 主控心跳帧标准 ID。
  * @return HAL_OK 表示两个过滤器和 CAN 启动均成功。
- * @note 接收 ID 分别为 0x100+wheel_id 和 0x110+wheel_id。
  */
 HAL_StatusTypeDef BSP_CAN_StartMasterFilter(
     CAN_HandleTypeDef *hcan,
-    uint8_t wheel_id);
+    uint32_t control_id,
+    uint32_t heartbeat_id);
 
 #endif /* BSP_CAN_H */

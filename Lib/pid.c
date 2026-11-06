@@ -30,7 +30,7 @@ void PidInit(Pids *pid, float kp, float ki, float kd, float dt, float output_max
     pid->kp = kp;
     pid->ki = ki;
     pid->kd = kd;
-    pid->dt = (dt > 0.0f) ? dt : 0.001f;
+    pid->dt = dt;
     pid->output_max = fabsf(output_max);
     pid->integral_max = fabsf(integral_max);
     pid->integral_separation = integral_separation;

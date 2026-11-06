@@ -16,7 +16,12 @@
 
 #define MASTER_CONTROL_ID_BASE     0x100U
 #define MASTER_HEARTBEAT_ID_BASE   0x110U
-#define MASTER_LINK_TIMEOUT_MS     500U
+
+typedef struct
+{
+    uint32_t wheel_id;
+    uint32_t link_timeout_ms;
+} MasterCan_Config_t;
 
 typedef struct
 {
@@ -41,8 +46,9 @@ typedef struct
     uint8_t link_valid;
 } MasterCan_t;
 
-/** @brief 初始化轮号、协议 ID 和链路状态。 */
-void MasterCan_Init(MasterCan_t *master, uint8_t wheel_id);
+/** @brief 使用应用层配置初始化轮号、协议 ID 和链路状态。 */
+void MasterCan_Init(MasterCan_t *master,
+                    const MasterCan_Config_t *config);
 
 /** @brief 解析本轮控制帧或心跳帧。 */
 void MasterCan_OnRx(MasterCan_t *master,
