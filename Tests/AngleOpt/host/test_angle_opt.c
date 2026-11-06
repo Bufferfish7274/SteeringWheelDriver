@@ -36,6 +36,56 @@ static void CheckResult(float current,
           "output angle normalized");
 }
 
+static float Wrap180(float angle_deg)
+{
+    angle_deg = fmodf(angle_deg, 360.0f);
+    if (angle_deg < 0.0f)
+    {
+        angle_deg += 360.0f;
+    }
+    if (angle_deg >= 180.0f)
+    {
+        angle_deg -= 360.0f;
+    }
+    return angle_deg;
+}
+
+static void Test_MaxRotation(void)
+{
+    const int32_t erpm_values[] = {-100, 0, 100};
+    uint32_t current_deg;
+    uint32_t target_deg;
+    uint32_t erpm_index;
+
+    for (current_deg = 0U; current_deg < 360U; current_deg++)
+    {
+        for (target_deg = 0U; target_deg < 360U; target_deg++)
+        {
+            for (erpm_index = 0U;
+                 erpm_index <
+                 (sizeof(erpm_values) / sizeof(erpm_values[0]));
+                 erpm_index++)
+            {
+                AngleOptResult_t result;
+                float travel_deg;
+
+                AngleOpt_Select((float)current_deg,
+                                (float)target_deg,
+                                erpm_values[erpm_index],
+                                &result);
+                travel_deg = Wrap180(result.target_angle_deg -
+                                     (float)current_deg);
+
+                if (fabsf(travel_deg) > 90.001f)
+                {
+                    Check(0, "selected rotation exceeds 90 degrees");
+                    return;
+                }
+            }
+        }
+    }
+}
+
 int main(void)
 {
     CheckResult(0.0f, 0.0f, 100,
@@ -63,8 +113,24 @@ int main(void)
                 "180 degree opposite is zero distance after reverse");
 
     CheckResult(0.0f, 100.0f, 0,
-                100.0f, 0, 0U,
-                "zero ERPM keeps target angle");
+                280.0f, 0, 1U,
+                "zero ERPM selects closer reverse angle");
+
+    CheckResult(0.0f, 120.0f, 0,
+                300.0f, 0, 1U,
+                "zero ERPM turns 60 degrees instead of 120");
+
+    CheckResult(60.0f, 120.0f, 0,
+                120.0f, 0, 0U,
+                "zero ERPM keeps closer original angle");
+
+    CheckResult(30.0f, 120.0f, 0,
+                120.0f, 0, 0U,
+                "zero ERPM 90 degree tie keeps original");
+
+    CheckResult(0.0f, 180.0f, 0,
+                0.0f, 0, 1U,
+                "zero ERPM opposite angle needs no rotation");
 
     CheckResult(-10.0f, 370.0f, 100,
                 10.0f, 100, 0U,
@@ -77,6 +143,8 @@ int main(void)
     CheckResult(180.0f, 0.0f, 100,
                 180.0f, -100, 1U,
                 "opposite angle reverses ERPM");
+
+    Test_MaxRotation();
 
     if (g_failures != 0U)
     {

@@ -68,16 +68,17 @@ static void Test_PositionOptimizationAndRamp(void)
 
     debug.direction_erpm = 0;
     WheelDebug_Update(&debug, &runtime, 0.0f, 0.001f);
-    Check(runtime.angle_result.reversed == 0U,
-          "zero direction ERPM keeps original target");
-    Check(fabsf(runtime.ramp_output_angle_deg - 100.0f) < 0.01f,
-          "zero ERPM position target is unchanged");
+    Check(runtime.angle_result.reversed == 1U,
+          "zero direction ERPM still selects closer candidate");
+    Check(fabsf(runtime.ramp_output_angle_deg - 280.0f) < 0.01f,
+          "zero direction ERPM uses optimized target");
 
     debug.use_ramp = 1U;
     WheelDebug_Update(&debug, &runtime, 0.0f, 0.001f);
     Check(debug.enable == 1U,
           "ramp toggle preserves enable");
-    Check(fabsf(runtime.ramp_output_angle_deg) < 1.0f,
+    Check((fabsf(runtime.ramp_output_angle_deg) < 1.0f) ||
+          (fabsf(runtime.ramp_output_angle_deg - 360.0f) < 1.0f),
           "ramp toggle restarts from current angle");
 }
 

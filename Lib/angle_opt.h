@@ -8,7 +8,8 @@
  * @brief 舵轮物理等价方向选择。
  *
  * 对于目标 `(angle, erpm)`，`(angle+180, -erpm)` 对应同一个底盘运动方向。
- * 本模块选择与当前舵向角距离更短的一组，从而减少舵向旋转量。
+ * 本模块选择与当前舵向角距离更短的一组，从而将候选选择时的舵向位移
+ * 限制在不超过 90 度。ERPM 为 0 时也执行相同的方向选择。
  */
 
 typedef struct
@@ -23,6 +24,10 @@ typedef struct
 
 /**
  * @brief 在原始目标与反向等价目标之间选择更近的一组。
+ *
+ * wrap180 比较等价于在 target±360k 和 target+180±360k 的全部副本中
+ * 选择距离当前角最近者。零 ERPM 不会跳过反向候选。
+ *
  * @param current_angle_deg 当前舵轮本地坐标角。
  * @param target_angle_deg 主控坐标映射后的目标角。
  * @param target_erpm 主控 ERPM。
