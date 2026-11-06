@@ -29,8 +29,10 @@ static float AngleOpt_Wrap180(float angle_deg)
  * @brief 从两个物理等价方向中选出离当前舵向更近的方案。
  *
  * A=(target, erpm)，B=(target+180, -erpm)。
+ * wrap180 会在计算距离时自动选择候选角的 ±360 度等价副本，
+ * 因此无需显式枚举 target-360 或 target+180-360。
  * 距离相等时保留 A，避免 ERPM 无必要翻转。
- * ERPM 为 0 时不构造反向方案，只把目标角转到归一化值。
+ * ERPM 为 0 时仍可选择反向朝向，此时反向 ERPM 同样为 0。
  */
 void AngleOpt_Select(float current_angle_deg,
                      float target_angle_deg,
@@ -54,11 +56,6 @@ void AngleOpt_Select(float current_angle_deg,
     result->target_angle_deg = target_norm;
     result->target_erpm = target_erpm;
     result->reversed = 0U;
-
-    if (target_erpm == 0)
-    {
-        return;
-    }
 
     reversed_angle = AngleOpt_Wrap360(target_norm + 180.0f);
 

@@ -243,8 +243,8 @@ void WheelDebug_Update(WheelDebug_t *debug,
         WheelDebug_Wrap360(desired_angle_deg);
 
     /*
-     * direction_erpm=0 时 AngleOpt 保持原目标；非零时它只用于选择物理
-     * 等价方向，不会发送给 VESC。
+     * direction_erpm 只用于 AngleOpt 选择物理等价方向，不会发送给 VESC。
+     * 即使其为 0，AngleOpt 仍会选择距离当前角更近的朝向。
      */
     AngleOpt_Select(current_angle_deg,
                     runtime->source_angle_deg,

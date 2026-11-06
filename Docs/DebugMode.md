@@ -49,7 +49,8 @@ g_wheel_debug.enable = 1
 
 - `target_angle_deg` 是舵轮本地坐标角；
 - `direction_erpm` 只参与 `AngleOpt` 的 180° 等价方向选择，不驱动 VESC；
-- `direction_erpm=0` 时保持输入目标角；
+- `direction_erpm=0` 时仍选择距离当前舵向更近的物理候选，可能把目标角
+  改到反向朝向；
 - `use_ramp=1` 时目标先经过位置斜坡，0 时直接进入位置环；
 - 正弦模式下 `wave_amplitude_deg` 限制到 `0..180°`，周期不小于 200 ms。
 
