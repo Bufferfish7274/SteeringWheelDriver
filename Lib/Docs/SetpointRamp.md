@@ -36,8 +36,8 @@ max_accel_deg_s2   加速度上限
 ## 参数来源
 
 斜坡模块不提供产品默认参数。`AppConfig.h` 定义当前最大角速度和最大
-角加速度，`App.c` 将它们组装为 `SetpointRamp_Config_t` 后传入
-`SetpointRamp_Init()`。正式控制和调试位置模式共用同一个斜坡对象。
+角加速度，`WheelApp.cpp` 将它们组装为 `SetpointRampConfig` 后传入
+`SetpointRamp::init()`。正式控制和调试位置模式共用同一个斜坡对象。
 
 ## API 生命周期
 

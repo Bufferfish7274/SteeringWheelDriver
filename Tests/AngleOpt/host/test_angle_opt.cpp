@@ -1,16 +1,16 @@
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
 
-#include "angle_opt.h"
+#include "AngleOpt.hpp"
 
 static uint32_t g_failures;
 
-static void Check(int condition, const char *message)
+static void Check(bool condition, const char *message)
 {
     if (!condition)
     {
-        printf("FAIL: %s\n", message);
+        std::printf("FAIL: %s\n", message);
         g_failures++;
     }
 }
@@ -23,11 +23,10 @@ static void CheckResult(float current,
                         uint8_t expected_reversed,
                         const char *message)
 {
-    AngleOptResult_t result;
+    const steering::angle_opt::Result result =
+        steering::angle_opt::select(current, target, erpm);
 
-    AngleOpt_Select(current, target, erpm, &result);
-
-    Check(fabsf(result.target_angle_deg - expected_angle) < 0.001f,
+    Check(std::fabs(result.target_angle_deg - expected_angle) < 0.001f,
           message);
     Check(result.target_erpm == expected_erpm, message);
     Check(result.reversed == expected_reversed, message);
@@ -38,7 +37,7 @@ static void CheckResult(float current,
 
 static float Wrap180(float angle_deg)
 {
-    angle_deg = fmodf(angle_deg, 360.0f);
+    angle_deg = std::fmod(angle_deg, 360.0f);
     if (angle_deg < 0.0f)
     {
         angle_deg += 360.0f;
@@ -66,17 +65,17 @@ static void Test_MaxRotation(void)
                  (sizeof(erpm_values) / sizeof(erpm_values[0]));
                  erpm_index++)
             {
-                AngleOptResult_t result;
                 float travel_deg;
 
-                AngleOpt_Select((float)current_deg,
-                                (float)target_deg,
-                                erpm_values[erpm_index],
-                                &result);
+                const steering::angle_opt::Result result =
+                    steering::angle_opt::select(
+                        static_cast<float>(current_deg),
+                        static_cast<float>(target_deg),
+                        erpm_values[erpm_index]);
                 travel_deg = Wrap180(result.target_angle_deg -
                                      (float)current_deg);
 
-                if (fabsf(travel_deg) > 90.001f)
+                if (std::fabs(travel_deg) > 90.001f)
                 {
                     Check(0, "selected rotation exceeds 90 degrees");
                     return;
@@ -86,7 +85,7 @@ static void Test_MaxRotation(void)
     }
 }
 
-int main(void)
+int main()
 {
     CheckResult(0.0f, 0.0f, 100,
                 0.0f, 100, 0U,
@@ -148,11 +147,11 @@ int main(void)
 
     if (g_failures != 0U)
     {
-        printf("AngleOpt host tests: %u failure(s)\n",
-               (unsigned)g_failures);
+        std::printf("AngleOpt host tests: %u failure(s)\n",
+                    static_cast<unsigned>(g_failures));
         return 1;
     }
 
-    printf("AngleOpt host tests: all passed\n");
+    std::printf("AngleOpt host tests: all passed\n");
     return 0;
 }

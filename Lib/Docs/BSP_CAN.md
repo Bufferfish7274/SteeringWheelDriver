@@ -13,14 +13,15 @@
 ## 接口
 
 ```c
-HAL_StatusTypeDef BSP_CAN_StartAcceptAll(CAN_HandleTypeDef *hcan);
-HAL_StatusTypeDef BSP_CAN_StartMasterFilter(
+HAL_StatusTypeDef steering::bsp_can::startAcceptAll(
+    CAN_HandleTypeDef *hcan);
+HAL_StatusTypeDef steering::bsp_can::startMasterFilter(
     CAN_HandleTypeDef *hcan,
     uint32_t control_id,
     uint32_t heartbeat_id);
 ```
 
-### `BSP_CAN_StartAcceptAll`
+### `bsp_can::startAcceptAll`
 
 配置 ID 和掩码全为 0 的过滤器，使 FIFO0 接收总线上的全部帧。
 当前用于 CAN1：
@@ -29,9 +30,9 @@ HAL_StatusTypeDef BSP_CAN_StartMasterFilter(
 - VESC 使用扩展状态 ID；
 - 上层 RX 回调再按驱动和 ID 分发。
 
-### `BSP_CAN_StartMasterFilter`
+### `bsp_can::startMasterFilter`
 
-配置两个精确匹配的标准 ID。ID 由 `MasterCan_t` 根据本轮配置生成后
+配置两个精确匹配的标准 ID。ID 由 `MasterCan` 根据本轮配置生成后
 传入，低层 CAN 模块不重复定义轮号到协议的映射：
 
 ```text
@@ -49,7 +50,7 @@ CAN1 使用 bank 0/1，CAN2 使用 bank 14/15。
 ## 错误处理
 
 所有公开函数在过滤器配置、CAN 启动或中断通知任一步失败时返回错误。
-正式应用在 `App_Start()` 中对返回值调用 `Error_Handler()`。
+正式应用在 `WheelApp::start()` 中对返回值调用 `Error_Handler()`。
 
 ## 使用顺序
 
@@ -57,8 +58,9 @@ CAN1 使用 bank 0/1，CAN2 使用 bank 14/15。
 MX_CAN1_Init();
 MX_CAN2_Init();
 
-BSP_CAN_StartAcceptAll(&hcan1);
-BSP_CAN_StartMasterFilter(&hcan2, 0x101U, 0x111U);
+steering::bsp_can::startAcceptAll(&hcan1);
+steering::bsp_can::startMasterFilter(
+    &hcan2, 0x101U, 0x111U);
 
 HAL_TIM_Base_Start_IT(&htim6);
 ```

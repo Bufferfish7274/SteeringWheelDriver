@@ -1,6 +1,6 @@
 # WheelDebug 主机端测试
 
-该测试验证 `App/WheelDebug.c` 的目标生成逻辑，不访问真实 CAN、HAL、
+该测试验证 `App/WheelDebug.cpp` 的目标生成逻辑，不访问真实 CAN、HAL、
 定时器或电机。
 
 ```powershell

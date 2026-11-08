@@ -1,6 +1,6 @@
 # 驱动模块文档
 
-本目录描述 `Lib/` 中各生产模块的职责、接口、算法和使用约束。
+本目录描述 `Lib/` 中各 C++17 生产模块的职责、接口、算法和使用约束。
 整机接线、主控协议、LED 和串口通道请先阅读项目根目录的 `README.md`。
 
 | 模块 | 职责 |
@@ -13,5 +13,6 @@
 | [AngleOpt](AngleOpt.md) | 最近物理等效舵向选择 |
 | [SetpointRamp](SetpointRamp.md) | 位置目标速度和加速度限制 |
 
-模块的主机测试分别位于 `Tests/<Module>/host/`。实机调参统一通过
+模块的主机测试分别位于 `Tests/<Module>/host/`，使用 C++17 编译。
+实机调参统一通过
 `WHEEL_BUILD_DEBUG=1` 和 `g_wheel_debug` 完成。

@@ -20,8 +20,8 @@
 
 驱动使用扩展帧：
 
-- 控制：`(VESC_PACKET_SET_RPM << 8) | 67 = 0x343`；
-- 状态：`(VESC_PACKET_STATUS << 8) | 67 = 0x943`；
+- 控制：`(Vesc::kPacketSetRpm << 8) | 67 = 0x343`；
+- 状态：`(Vesc::kPacketStatus << 8) | 67 = 0x943`；
 - 控制数据为前 4 字节大端 `int32 ERPM`，后 4 字节为 0；
 - 状态数据为 ERPM、电流和占空比。
 
@@ -41,7 +41,7 @@ CAN 总线两端各接 `120 Ω` 终端电阻。首次测试必须可靠固定电
 
 ## 测试模式
 
-把 `App/AppConfig.h` 的 `WHEEL_BUILD_DEBUG` 改为 1，重新编译后在
+把 `App/AppConfig.hpp` 的 `WHEEL_BUILD_DEBUG` 改为 1，重新编译后在
 Keil Watch 中设置：
 
 ```text
@@ -57,7 +57,7 @@ GM6020 在该模式下保持失能零输出。
 
 - 初始模式为 `DISABLED`，初始使能为 0；
 - 模式切换会立即发送 0 ERPM 并清除使能；
-- 超过 `APP_VESC_ONLINE_TIMEOUT_MS` 未收到 ID 67 的有效状态帧时，App
+- 超过 `steering::config::kVescOnlineTimeoutMs` 未收到 ID 67 的有效状态帧时，App
   清除调试使能、发送 0 ERPM，并要求重新手动使能；
 - VESC 自身同时配置了 100 ms 通讯超时；
 - VESC 离线时 PB5 熄灭，驱动使能时 PB6 点亮；

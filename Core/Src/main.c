@@ -6,11 +6,10 @@
 #include "usart.h"
 
 /* USER CODE BEGIN Includes */
-#include "App.h"
+#include "WheelAppApi.h"
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN PV */
-static App_t g_app;
 /* USER CODE END PV */
 
 void SystemClock_Config(void);
@@ -40,12 +39,8 @@ int main(void)
     MX_USART1_UART_Init();
 
     /* USER CODE BEGIN 2 */
-    App_Init(&g_app,
-             &hcan1,
-             &hcan2,
-             &htim6,
-             &huart1);
-    App_Start(&g_app);
+    WheelApp_Init(&hcan1, &hcan2, &htim6, &huart1);
+    WheelApp_Start();
     /* USER CODE END 2 */
 
     while (1)
@@ -55,7 +50,7 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        App_Loop(&g_app);
+        WheelApp_Loop();
         /* USER CODE END 3 */
     }
 }
@@ -101,12 +96,12 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-    App_OnCanRx(&g_app, hcan);
+    WheelApp_OnCanRx(hcan);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    App_OnTimerElapsed(&g_app, htim);
+    WheelApp_OnTimerElapsed(htim);
 }
 
 void USART1_IRQHandler(void)
@@ -116,7 +111,7 @@ void USART1_IRQHandler(void)
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-    App_OnUartTxComplete(&g_app, huart);
+    WheelApp_OnUartTxComplete(huart);
 }
 /* USER CODE END 4 */
 

@@ -6,7 +6,7 @@
 
 ## 构建与上电
 
-工程只有一个 Keil Target。把 `App/AppConfig.h` 中的
+工程只有一个 Keil Target。把 `App/AppConfig.hpp` 中的
 `WHEEL_BUILD_DEBUG` 改为 1，重新编译并烧录；改回 0 即恢复正式固件。
 上电后的 500 ms 自检期间四个 LED 常亮，两个执行器保持失能。
 
@@ -125,7 +125,7 @@ g_app.gm6020.voltage_limit_raw
 g_wheel_debug.erpm_limit
 ```
 
-找到合适参数后，必须停机并回填 [AppConfig.h](../App/AppConfig.h)，重新
+找到合适参数后，必须停机并回填 [AppConfig.hpp](../App/AppConfig.hpp)，重新
 把宏改回 0 并重新编译正式固件。Watch 修改不会写入 Flash。
 
 ## 串口

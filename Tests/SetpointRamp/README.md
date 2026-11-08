@@ -10,7 +10,8 @@
 ```
 
 这些只是测试输入，不是产品默认值。正式固件的斜坡参数来自
-`App/AppConfig.h` 中的 `APP_RAMP_*`。
+`App/AppConfig.hpp` 中的 `kRampMaxSpeedDegS` 和
+`kRampMaxAccelDegS2`。
 
 它只改变目标参考，不改变 PID 公式。小角度形成三角形速度轨迹，大角度形成梯形轨迹。
 

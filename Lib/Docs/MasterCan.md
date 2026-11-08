@@ -64,7 +64,7 @@ if (master.link_valid && master.control_seen) {
 - 只接受标准数据帧；
 - 只接受 DLC 8；
 - 错误轮号、扩展帧和远程帧会被忽略；
-- 轮号和链路超时由 `MasterCan_Config_t` 在初始化时注入；
+- 轮号和链路超时由 `MasterCan::Config` 在初始化时注入；
 - 模块不配置 CAN 过滤器，也不启动 CAN。
 
 ## 测试
