@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
-#include "VESC.h"
+#include "VESC.hpp"
 
 const int VESC_STUB_CAN1 = 1;
 
@@ -10,6 +10,15 @@ static uint8_t g_tx_data[8];
 static uint32_t g_tx_count;
 static HAL_StatusTypeDef g_tx_result = HAL_OK;
 static uint32_t g_failures;
+
+static void InitVesc(steering::Vesc &vesc, CAN_HandleTypeDef *hcan)
+{
+    steering::Vesc::Config config = {};
+    config.controller_id = 67U;
+    config.online_timeout_ms = 100U;
+
+    vesc.init(hcan, config);
+}
 
 void Error_Handler(void)
 {
@@ -25,10 +34,10 @@ HAL_StatusTypeDef HAL_CAN_AddTxMessage(
     (void)hcan;
 
     g_tx_header = *header;
-    memcpy(g_tx_data, data, sizeof(g_tx_data));
+    std::memcpy(g_tx_data, data, sizeof(g_tx_data));
     g_tx_count++;
 
-    if (mailbox != NULL)
+    if (mailbox != nullptr)
     {
         *mailbox = 0U;
     }
@@ -36,11 +45,11 @@ HAL_StatusTypeDef HAL_CAN_AddTxMessage(
     return g_tx_result;
 }
 
-static void Check(int condition, const char *message)
+static void Check(bool condition, const char *message)
 {
     if (!condition)
     {
-        printf("FAIL: %s\n", message);
+        std::printf("FAIL: %s\n", message);
         g_failures++;
     }
 }
@@ -65,8 +74,9 @@ static void EncodeInt16(uint8_t *data, int16_t value)
 
 static void MakeStatusHeader(CAN_RxHeaderTypeDef *header)
 {
-    memset(header, 0, sizeof(*header));
-    header->ExtId = (uint32_t)(VESC_PACKET_STATUS << 8U) | 67U;
+    std::memset(header, 0, sizeof(*header));
+    header->ExtId =
+        (steering::Vesc::PacketStatus << 8U) | 67U;
     header->IDE = CAN_ID_EXT;
     header->RTR = CAN_RTR_DATA;
     header->DLC = 8U;
@@ -74,18 +84,18 @@ static void MakeStatusHeader(CAN_RxHeaderTypeDef *header)
 
 static void Test_StatusDecode(void)
 {
-    VESC_t vesc;
+    steering::Vesc vesc;
     CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
     CAN_RxHeaderTypeDef header;
     uint8_t data[8];
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(vesc, &can1);
     MakeStatusHeader(&header);
     EncodeInt32(&data[0], -123456);
     EncodeInt16(&data[4], -123);
     EncodeInt16(&data[6], 750);
 
-    VESC_OnRx(&vesc, &header, data, 1000U);
+    vesc.onRx(&header, data, 1000U);
 
     Check(vesc.actual_erpm == -123456, "signed ERPM decode");
     Check(vesc.actual_current_a < -12.29f &&
@@ -96,46 +106,47 @@ static void Test_StatusDecode(void)
     Check(vesc.is_online == 1U, "valid status marks online");
     Check(vesc.last_rx_ms == 1000U, "status timestamp");
 
-    header.ExtId = (uint32_t)(VESC_PACKET_STATUS << 8U) | 68U;
-    VESC_OnRx(&vesc, &header, data, 1010U);
+    header.ExtId =
+        (steering::Vesc::PacketStatus << 8U) | 68U;
+    vesc.onRx(&header, data, 1010U);
     Check(vesc.last_rx_ms == 1000U, "wrong controller ID ignored");
 
     MakeStatusHeader(&header);
     header.IDE = CAN_ID_STD;
-    VESC_OnRx(&vesc, &header, data, 1020U);
+    vesc.onRx(&header, data, 1020U);
     Check(vesc.last_rx_ms == 1000U, "standard frame ignored");
 
     MakeStatusHeader(&header);
     header.DLC = 7U;
-    VESC_OnRx(&vesc, &header, data, 1030U);
+    vesc.onRx(&header, data, 1030U);
     Check(vesc.last_rx_ms == 1000U, "wrong DLC ignored");
 
     MakeStatusHeader(&header);
     header.RTR = CAN_RTR_REMOTE;
-    VESC_OnRx(&vesc, &header, data, 1040U);
+    vesc.onRx(&header, data, 1040U);
     Check(vesc.last_rx_ms == 1000U, "remote frame ignored");
 }
 
 static void Test_TimeoutBoundary(void)
 {
-    VESC_t vesc;
+    steering::Vesc vesc;
     CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
     CAN_RxHeaderTypeDef header;
     uint8_t data[8] = {0};
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(vesc, &can1);
     MakeStatusHeader(&header);
-    VESC_OnRx(&vesc, &header, data, 0U);
-    VESC_Enable(&vesc);
-    VESC_SetTargetErpm(&vesc, -321);
+    vesc.onRx(&header, data, 0U);
+    vesc.enable();
+    vesc.setTargetErpm(-321);
 
-    VESC_ControlStep(&vesc, 100U);
+    vesc.controlStep(100U);
     Check(vesc.is_online == 1U, "100 ms remains online");
     Check(g_tx_data[0] == 0xFFU && g_tx_data[1] == 0xFFU &&
           g_tx_data[2] == 0xFEU && g_tx_data[3] == 0xBFU,
           "enabled target sent via SET_RPM");
 
-    VESC_ControlStep(&vesc, 101U);
+    vesc.controlStep(101U);
     Check(vesc.is_online == 0U, "101 ms marks offline");
     Check(g_tx_data[0] == 0U && g_tx_data[1] == 0U &&
           g_tx_data[2] == 0U && g_tx_data[3] == 0U,
@@ -144,20 +155,20 @@ static void Test_TimeoutBoundary(void)
 
 static void Test_TxPacket(void)
 {
-    VESC_t vesc;
+    steering::Vesc vesc;
     CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
     CAN_RxHeaderTypeDef status;
     uint8_t data[8] = {0};
     uint32_t before;
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(vesc, &can1);
     MakeStatusHeader(&status);
-    VESC_OnRx(&vesc, &status, data, 1U);
-    VESC_Enable(&vesc);
-    VESC_SetTargetErpm(&vesc, 1234);
+    vesc.onRx(&status, data, 1U);
+    vesc.enable();
+    vesc.setTargetErpm(1234);
 
     before = g_tx_count;
-    Check(VESC_SendErpm(&vesc, 1234) == HAL_OK,
+    Check(vesc.sendErpm(1234) == HAL_OK,
           "SET_RPM send succeeds");
     Check(g_tx_count == before + 1U, "one CAN frame transmitted");
     Check(g_tx_header.ExtId == 0x343U, "ID 67 SET_RPM extended ID");
@@ -176,22 +187,22 @@ static void Test_TxPacket(void)
 
 static void Test_DisableAndCounters(void)
 {
-    VESC_t vesc;
+    steering::Vesc vesc;
     CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
     uint32_t before;
 
-    VESC_Init(&vesc, &can1, 67U);
+    InitVesc(vesc, &can1);
     g_tx_result = HAL_BUSY;
     before = vesc.tx_busy_count;
-    Check(VESC_SendErpm(&vesc, 100) == HAL_BUSY,
+    Check(vesc.sendErpm(100) == HAL_BUSY,
           "busy status returned");
     Check(vesc.tx_busy_count == before + 1U,
           "busy counter increments");
 
     g_tx_result = HAL_OK;
-    VESC_Enable(&vesc);
-    VESC_SetTargetErpm(&vesc, 500);
-    VESC_Disable(&vesc);
+    vesc.enable();
+    vesc.setTargetErpm(500);
+    vesc.disable();
     Check(vesc.is_enabled == 0U, "disable clears enabled");
     Check(vesc.target_erpm == 0, "disable clears target");
     Check(g_tx_data[0] == 0U && g_tx_data[1] == 0U &&
@@ -199,19 +210,36 @@ static void Test_DisableAndCounters(void)
           "disable sends zero ERPM");
 }
 
-int main(void)
+static void Test_ConfigValidation(void)
+{
+    steering::Vesc vesc;
+    CAN_HandleTypeDef can1 = {&VESC_STUB_CAN1};
+    steering::Vesc::Config config = {};
+    config.controller_id = 256U;
+    config.online_timeout_ms = 100U;
+    uint32_t failures_before = g_failures;
+
+    vesc.init(&can1, config);
+    Check(g_failures == failures_before + 1U,
+          "controller ID above 255 is rejected");
+    g_failures = failures_before;
+}
+
+int main()
 {
     Test_StatusDecode();
     Test_TimeoutBoundary();
     Test_TxPacket();
     Test_DisableAndCounters();
+    Test_ConfigValidation();
 
     if (g_failures != 0U)
     {
-        printf("VESC host tests: %u failure(s)\n", g_failures);
+        std::printf("VESC host tests: %u failure(s)\n",
+                    static_cast<unsigned>(g_failures));
         return 1;
     }
 
-    printf("VESC host tests: all passed\n");
+    std::printf("VESC host tests: all passed\n");
     return 0;
 }

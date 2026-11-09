@@ -15,13 +15,13 @@ powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
 - GM6020 反馈解码、零位和方向；
 - 反馈超时、PID 清零和零电压输出；
 - 位置、速度和直接电压三种控制模式；
-- 调参注入、运行限幅同步和抗积分饱和；
+- 完整配置在初始化时一次注入、运行限幅同步和抗积分饱和；
 - 模式切换清使能、清目标和零输出；
 - ID 1/ID 5 的 CAN 地址以及总线过滤器。
 
 ## 调试固件接口
 
-把 `App/AppConfig.h` 的 `WHEEL_BUILD_DEBUG` 改为 1，重新编译后修改
+把 `App/AppConfig.hpp` 的 `WHEEL_BUILD_DEBUG` 改为 1，重新编译后修改
 `g_wheel_debug`：
 
 | 模式 | 值 | 关键变量 |
@@ -41,4 +41,4 @@ powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
 3. 用小幅值确认角度方向和 `voltage_sign`。
 4. 先调速度环，再调位置环。
 5. 每次只修改一组参数，并记录阶跃响应、超调、稳定时间和最大电流。
-6. 停机后把最终参数回填 `App/AppConfig.h`，把调试宏改回 0 并重新编译。
+6. 停机后把最终参数回填 `App/AppConfig.hpp`，把调试宏改回 0 并重新编译。

@@ -1,6 +1,7 @@
 # AngleOpt 单轮方向选择
 
-`AngleOpt_Select()` 根据当前舵向角、主控目标角和目标 ERPM，在两个物理等价候选之间选择：
+`steering::angle_opt::select()` 根据当前舵向角、主控目标角和目标 ERPM，
+在两个物理等价候选之间选择：
 
 ```text
 A: target_angle,  target_erpm

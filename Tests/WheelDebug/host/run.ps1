@@ -4,21 +4,23 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $appPath = Join-Path $projectRoot "App"
 $libPath = Join-Path $projectRoot "Lib"
 $stubPath = Join-Path $PSScriptRoot "stubs"
-$source = Join-Path $PSScriptRoot "test_wheel_debug.c"
+$source = Join-Path $PSScriptRoot "test_wheel_debug.cpp"
 $exe = Join-Path $env:TEMP "wheel_debug_host_test.exe"
 
-& gcc `
-    -std=c99 `
+& g++ `
+    -std=c++17 `
     -Wall `
     -Wextra `
     -Werror `
+    -fno-exceptions `
+    -fno-rtti `
     -I $stubPath `
     -I $appPath `
     -I $libPath `
     $source `
-    (Join-Path $appPath "WheelDebug.c") `
-    (Join-Path $libPath "angle_opt.c") `
-    (Join-Path $libPath "setpoint_ramp.c") `
+    (Join-Path $appPath "WheelDebug.cpp") `
+    (Join-Path $libPath "AngleOpt.cpp") `
+    (Join-Path $libPath "SetpointRamp.cpp") `
     -lm `
     -o $exe
 

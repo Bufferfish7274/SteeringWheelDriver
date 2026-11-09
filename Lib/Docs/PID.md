@@ -24,16 +24,16 @@ output = clamp(P + I + D, output_max)
 
 ## 两个计算入口
 
-### `PidCalPositionError`
+### `Pid::update(error)`
 
 调用者直接提供误差。适合角度控制，因为调用者可以先执行 `wrap180`：
 
 ```c
 error = Wrap180(target_angle - current_angle);
-output = PidCalPositionError(&pid, error);
+output = pid.update(error);
 ```
 
-### `PidCalPosition`
+### `Pid::update(target, feedback)`
 
 便利接口，内部计算 `target - feedback`。适合 RPM、电流等线性量，
 不应直接用于跨越 0°/360° 的角度。
@@ -55,9 +55,10 @@ GM6020 当前策略：
 ## 配置要求
 
 - 所有同一次控制中的周期必须一致；
+- `Pid::init()` 不提供隐藏的控制周期回退，调用者必须传入正值；
 - 修改 `output_max` 后应同步给 PID，否则抗饱和判断可能与真实限幅不一致；
-- `PidReset()` 只清运行状态，保留整定参数；
-- 从故障恢复或重新使能时必须调用 `PidReset()`。
+- `Pid::reset()` 只清运行状态，保留整定参数；
+- 从故障恢复或重新使能时必须调用 `Pid::reset()`。
 
 ## 测试
 详情见测试文档
