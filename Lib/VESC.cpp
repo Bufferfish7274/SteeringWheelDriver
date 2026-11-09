@@ -46,7 +46,7 @@ void Vesc::onRx(const CAN_RxHeaderTypeDef *header,
     }
 
     const uint32_t expected_id =
-        (kPacketStatus << 8U) |
+        (PacketStatus << 8U) |
         static_cast<uint32_t>(controller_id);
     if ((header->IDE != CAN_ID_EXT) ||
         (header->RTR != CAN_RTR_DATA) ||
@@ -128,7 +128,7 @@ HAL_StatusTypeDef Vesc::sendErpm(int32_t erpm)
 
     CAN_TxHeaderTypeDef header = {};
     header.ExtId =
-        (kPacketSetRpm << 8U) |
+        (PacketSetRpm << 8U) |
         static_cast<uint32_t>(controller_id);
     header.StdId = 0U;
     header.IDE = CAN_ID_EXT;

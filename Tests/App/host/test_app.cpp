@@ -248,19 +248,19 @@ static int RunDebugTests()
     app.start();
 
     Check(std::fabs(app.gm6020.position_pid.kp -
-                    steering::config::kGm6020PosKp) < 0.001f,
+                    steering::config::Gm6020PosKp) < 0.001f,
           "GM6020 position config initialized once from AppConfig");
     Check(std::fabs(app.gm6020.speed_pid.ki -
-                    steering::config::kGm6020SpeedKi) < 0.001f,
+                    steering::config::Gm6020SpeedKi) < 0.001f,
           "GM6020 speed config initialized once from AppConfig");
     Check(std::fabs(app.gm6020.position_pid.dt -
-                    steering::config::kControlDtS) < 0.000001f,
+                    steering::config::ControlDtS) < 0.000001f,
           "GM6020 uses the unified control period");
     Check(std::fabs(app.target_ramp.max_speed_deg_s -
-                    steering::config::kRampMaxSpeedDegS) < 0.001f,
+                    steering::config::RampMaxSpeedDegS) < 0.001f,
           "target ramp uses AppConfig speed limit");
     Check(std::fabs(app.target_ramp.max_accel_deg_s2 -
-                    steering::config::kRampMaxAccelDegS2) < 0.001f,
+                    steering::config::RampMaxAccelDegS2) < 0.001f,
           "target ramp uses AppConfig acceleration limit");
 
     Check(g_can_start_count == 1U,
@@ -268,14 +268,14 @@ static int RunDebugTests()
     Check(g_timer_start_count == 1U,
           "debug build starts the control timer");
 
-    AdvanceMs(app, steering::config::kSelfTestMs + 1U);
+    AdvanceMs(app, steering::config::SelfTestMs + 1U);
 
     g_wheel_debug.mode = steering::WheelDebugMode::GmPositionStep;
     app.onTimerElapsed(&tim6);
     Check(g_wheel_debug.enable == 0U,
           "mode change clears debug enable");
 
-    InjectGmFeedback(steering::config::kGm6020ZeroRaw, 0);
+    InjectGmFeedback(steering::config::Gm6020ZeroRaw, 0);
     app.onCanRx(&can1);
     Check(app.gm6020.is_online == 1U,
           "GM6020 feedback reaches App");
@@ -298,7 +298,7 @@ static int RunDebugTests()
     Check(app.gm6020.is_enabled == 0U,
           "speed mode transition disables GM6020");
 
-    InjectGmFeedback(steering::config::kGm6020ZeroRaw, 0);
+    InjectGmFeedback(steering::config::Gm6020ZeroRaw, 0);
     app.onCanRx(&can1);
     g_wheel_debug.target_speed_rpm = 50.0f;
     g_wheel_debug.enable = 1U;
@@ -311,7 +311,7 @@ static int RunDebugTests()
 
     g_wheel_debug.mode = steering::WheelDebugMode::GmVoltage;
     app.onTimerElapsed(&tim6);
-    InjectGmFeedback(steering::config::kGm6020ZeroRaw, 0);
+    InjectGmFeedback(steering::config::Gm6020ZeroRaw, 0);
     app.onCanRx(&can1);
     g_wheel_debug.target_voltage_raw = 1000;
     g_wheel_debug.enable = 1U;
@@ -373,8 +373,8 @@ static int RunProductionTests()
     Check(app.master.control_id == 0x101U,
           "master control ID comes from config");
 
-    AdvanceMs(app, steering::config::kSelfTestMs + 1U);
-    InjectGmFeedback(steering::config::kGm6020ZeroRaw, 0);
+    AdvanceMs(app, steering::config::SelfTestMs + 1U);
+    InjectGmFeedback(steering::config::Gm6020ZeroRaw, 0);
     app.onCanRx(&can1);
     InjectVescStatus(0);
     app.onCanRx(&can1);
@@ -391,7 +391,7 @@ static int RunProductionTests()
     Check(app.vesc.target_erpm != 0,
           "production control reaches VESC");
 
-    AdvanceMs(app, steering::config::kVescOnlineTimeoutMs + 1U);
+    AdvanceMs(app, steering::config::VescOnlineTimeoutMs + 1U);
     Check(app.wheel_active == 0U,
           "actuator timeout disables the wheel");
     Check(app.need_fresh_control == 1U,

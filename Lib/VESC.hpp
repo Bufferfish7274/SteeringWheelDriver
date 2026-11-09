@@ -31,8 +31,8 @@ public:
     void controlStep(uint32_t now_ms);
     HAL_StatusTypeDef sendErpm(int32_t erpm);
 
-    static constexpr uint32_t kPacketSetRpm = 3U;
-    static constexpr uint32_t kPacketStatus = 9U;
+    static constexpr uint32_t PacketSetRpm = 3U;
+    static constexpr uint32_t PacketStatus = 9U;
 
     CAN_HandleTypeDef *hcan;
     uint8_t controller_id;

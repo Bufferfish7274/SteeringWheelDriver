@@ -14,8 +14,8 @@ void MasterCan::init(const Config &config)
     }
 
     wheel_id = static_cast<uint8_t>(config.wheel_id);
-    control_id = kControlIdBase + wheel_id;
-    heartbeat_id = kHeartbeatIdBase + wheel_id;
+    control_id = ControlIdBase + wheel_id;
+    heartbeat_id = HeartbeatIdBase + wheel_id;
     drive_erpm = 0;
     angle_code = 0U;
     target_angle_deg = 0.0f;

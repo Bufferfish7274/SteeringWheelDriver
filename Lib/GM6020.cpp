@@ -25,7 +25,7 @@ bool isValidConfig(const Gm6020::Config &config)
             (config.max_speed_rpm > 0.0f) &&
             (config.voltage_limit_raw > 0) &&
             (config.voltage_limit_raw <=
-             Gm6020::kMaxVoltageRaw) &&
+             Gm6020::MaxVoltageRaw) &&
             (config.online_timeout_ms > 0U));
 }
 
@@ -88,10 +88,10 @@ void Gm6020::init(CAN_HandleTypeDef *handle,
 
 float Gm6020::wrap360(float angle_deg)
 {
-    angle_deg = std::fmod(angle_deg, kDegPerRev);
+    angle_deg = std::fmod(angle_deg, DegPerRev);
     if (angle_deg < 0.0f)
     {
-        angle_deg += kDegPerRev;
+        angle_deg += DegPerRev;
     }
     return angle_deg;
 }
@@ -101,7 +101,7 @@ float Gm6020::wrap180(float angle_deg)
     angle_deg = wrap360(angle_deg);
     if (angle_deg >= 180.0f)
     {
-        angle_deg -= kDegPerRev;
+        angle_deg -= DegPerRev;
     }
     return angle_deg;
 }
@@ -129,7 +129,7 @@ float Gm6020::rawToAngle(uint16_t raw) const
         static_cast<int32_t>(raw) - static_cast<int32_t>(zero_raw);
     float motor_deg =
         static_cast<float>(delta) *
-        (kDegPerRev / kRawPerRev) *
+        (DegPerRev / RawPerRev) *
         static_cast<float>(angle_sign);
 
     if ((gear_ratio > 0.0f) && (gear_ratio != 1.0f))
@@ -142,9 +142,9 @@ float Gm6020::rawToAngle(uint16_t raw) const
 int16_t Gm6020::clampVoltage(float voltage_raw) const
 {
     float limit = std::fabs(static_cast<float>(voltage_limit_raw));
-    if (limit > static_cast<float>(kMaxVoltageRaw))
+    if (limit > static_cast<float>(MaxVoltageRaw))
     {
-        limit = static_cast<float>(kMaxVoltageRaw);
+        limit = static_cast<float>(MaxVoltageRaw);
     }
     if (limit < 1.0f)
     {
@@ -223,13 +223,13 @@ void Gm6020::setTargetSpeed(float speed)
 
 void Gm6020::setTargetVoltage(int16_t voltage)
 {
-    if (voltage > kMaxVoltageRaw)
+    if (voltage > MaxVoltageRaw)
     {
-        voltage = static_cast<int16_t>(kMaxVoltageRaw);
+        voltage = static_cast<int16_t>(MaxVoltageRaw);
     }
-    else if (voltage < -kMaxVoltageRaw)
+    else if (voltage < -MaxVoltageRaw)
     {
-        voltage = static_cast<int16_t>(-kMaxVoltageRaw);
+        voltage = static_cast<int16_t>(-MaxVoltageRaw);
     }
     requested_voltage_raw = voltage;
 }
@@ -373,13 +373,13 @@ HAL_StatusTypeDef Gm6020::sendVoltage(int16_t voltage_raw)
     uint8_t slot;
 
     int32_t limited_voltage = voltage_raw;
-    if (limited_voltage > kMaxVoltageRaw)
+    if (limited_voltage > MaxVoltageRaw)
     {
-        limited_voltage = kMaxVoltageRaw;
+        limited_voltage = MaxVoltageRaw;
     }
-    else if (limited_voltage < -kMaxVoltageRaw)
+    else if (limited_voltage < -MaxVoltageRaw)
     {
-        limited_voltage = -kMaxVoltageRaw;
+        limited_voltage = -MaxVoltageRaw;
     }
 
     if (id <= 4U)

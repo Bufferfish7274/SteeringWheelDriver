@@ -24,7 +24,7 @@ void StatusLeds::reset()
 void StatusLeds::poll(WheelApp &app, uint32_t now_ms)
 {
     if (elapsedMs(now_ms, last_update_ms_) <
-        config::kLedUpdateMs)
+        config::LedUpdateMs)
     {
         return;
     }
@@ -34,14 +34,14 @@ void StatusLeds::poll(WheelApp &app, uint32_t now_ms)
 
 void StatusLeds::update(WheelApp &app)
 {
-    if (app.ms < config::kSelfTestMs)
+    if (app.ms < config::SelfTestMs)
     {
         HAL_GPIO_WritePin(
             GPIOB,
-            config::kLedMasterPin |
-                config::kLedVescPin |
-                config::kLedEnablePin |
-                config::kLedGm6020Pin,
+            config::LedMasterPin |
+                config::LedVescPin |
+                config::LedEnablePin |
+                config::LedGm6020Pin,
             GPIO_PIN_RESET);
         return;
     }
@@ -50,7 +50,7 @@ void StatusLeds::update(WheelApp &app)
 
 #if WHEEL_BUILD_DEBUG
     const uint8_t heartbeat =
-        (((app.ms / config::kDebugHeartbeatMs) % 2U) == 0U)
+        (((app.ms / config::DebugHeartbeatMs) % 2U) == 0U)
             ? 1U
             : 0U;
     const WheelDebugMode mode = g_wheel_debug.mode;
@@ -66,7 +66,7 @@ void StatusLeds::update(WheelApp &app)
     }
     HAL_GPIO_WritePin(
         GPIOB,
-        config::kLedMasterPin,
+        config::LedMasterPin,
         (heartbeat != 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
 #else
     enabled =
@@ -77,7 +77,7 @@ void StatusLeds::update(WheelApp &app)
             : 0U;
     HAL_GPIO_WritePin(
         GPIOB,
-        config::kLedMasterPin,
+        config::LedMasterPin,
         (app.master.link_valid != 0U)
             ? GPIO_PIN_RESET
             : GPIO_PIN_SET);
@@ -85,17 +85,17 @@ void StatusLeds::update(WheelApp &app)
 
     HAL_GPIO_WritePin(
         GPIOB,
-        config::kLedVescPin,
+        config::LedVescPin,
         (app.vesc_online != 0U)
             ? GPIO_PIN_RESET
             : GPIO_PIN_SET);
     HAL_GPIO_WritePin(
         GPIOB,
-        config::kLedEnablePin,
+        config::LedEnablePin,
         (enabled != 0U) ? GPIO_PIN_RESET : GPIO_PIN_SET);
     HAL_GPIO_WritePin(
         GPIOB,
-        config::kLedGm6020Pin,
+        config::LedGm6020Pin,
         (app.gm6020_online != 0U)
             ? GPIO_PIN_RESET
             : GPIO_PIN_SET);

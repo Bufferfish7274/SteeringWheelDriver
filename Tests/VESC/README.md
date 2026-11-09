@@ -20,8 +20,8 @@
 
 驱动使用扩展帧：
 
-- 控制：`(Vesc::kPacketSetRpm << 8) | 67 = 0x343`；
-- 状态：`(Vesc::kPacketStatus << 8) | 67 = 0x943`；
+- 控制：`(Vesc::PacketSetRpm << 8) | 67 = 0x343`；
+- 状态：`(Vesc::PacketStatus << 8) | 67 = 0x943`；
 - 控制数据为前 4 字节大端 `int32 ERPM`，后 4 字节为 0；
 - 状态数据为 ERPM、电流和占空比。
 
@@ -57,7 +57,7 @@ GM6020 在该模式下保持失能零输出。
 
 - 初始模式为 `DISABLED`，初始使能为 0；
 - 模式切换会立即发送 0 ERPM 并清除使能；
-- 超过 `steering::config::kVescOnlineTimeoutMs` 未收到 ID 67 的有效状态帧时，App
+- 超过 `steering::config::VescOnlineTimeoutMs` 未收到 ID 67 的有效状态帧时，App
   清除调试使能、发送 0 ERPM，并要求重新手动使能；
 - VESC 自身同时配置了 100 ms 通讯超时；
 - VESC 离线时 PB5 熄灭，驱动使能时 PB6 点亮；

@@ -29,9 +29,9 @@ float wrap360(float angle_deg)
 void ProductionController::applyPendingControl(WheelApp &app)
 {
     const float mapped_target_deg = wrap360(
-        (config::kMasterAngleSign *
+        (config::MasterAngleSign *
          app.master.target_angle_deg) +
-        config::kMasterAngleOffsetDeg);
+        config::MasterAngleOffsetDeg);
 
     const angle_opt::Result result = angle_opt::select(
         app.gm6020.angle_deg,
@@ -62,7 +62,7 @@ void ProductionController::step(WheelApp &app)
     app.master.update(app.ms);
     app.updateOnlineState();
 
-    if (app.ms < config::kSelfTestMs)
+    if (app.ms < config::SelfTestMs)
     {
         app.disableWheel();
         app.gm6020.controlStep(app.ms);
@@ -92,7 +92,7 @@ void ProductionController::step(WheelApp &app)
         if ((app.wheel_active != 0U) &&
             (app.need_fresh_control == 0U))
         {
-            app.target_ramp.update(config::kControlDtS);
+            app.target_ramp.update(config::ControlDtS);
             app.gm6020.setTargetAngle(app.target_ramp.output());
         }
     }

@@ -169,14 +169,14 @@ GM6020 目标角经过位置斜坡：
 ## 机械零位校准
 
 GM6020 原始角范围为 `0..8191`。修改
-`steering::config::kGm6020ZeroRaw` 后，反馈角和目标角会同时以新位置为 `0°`。
+`steering::config::Gm6020ZeroRaw` 后，反馈角和目标角会同时以新位置为 `0°`。
 
 推荐流程：
 
 1. 给分控板供电，但不连接主控，确保电机失能；
 2. 将舵轮转到机械零位；
 3. 在 Keil Watch 中读取 `g_app.gm6020.raw_angle`；
-4. 将 [AppConfig.hpp](App/AppConfig.hpp) 中 `steering::config::kGm6020ZeroRaw` 改为该值；
+4. 将 [AppConfig.hpp](App/AppConfig.hpp) 中 `steering::config::Gm6020ZeroRaw` 改为该值；
 5. 重新编译、烧录；
 6. 保持主控断开，确认 GM6020 实际角显示接近 `0°`；
 7. 正反旋转舵轮，确认角度变化方向正确。

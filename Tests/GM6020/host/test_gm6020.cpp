@@ -479,7 +479,7 @@ static void Test_ConfigValidation(void)
 
     config = MakeConfig();
     config.voltage_limit_raw =
-        static_cast<int32_t>(steering::Gm6020::kMaxVoltageRaw) + 1;
+        static_cast<int32_t>(steering::Gm6020::MaxVoltageRaw) + 1;
     failures_before = g_failures;
     motor.init(&can1, config);
     Check(g_failures == failures_before + 1U,

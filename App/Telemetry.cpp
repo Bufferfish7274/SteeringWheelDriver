@@ -43,7 +43,7 @@ void Telemetry::poll(WheelApp &app, uint32_t now_ms)
 {
     if ((busy_ != 0U) ||
         (elapsedMs(now_ms, last_send_ms_) <
-         config::kTelemetryMs))
+         config::TelemetryMs))
     {
         return;
     }

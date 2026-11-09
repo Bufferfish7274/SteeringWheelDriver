@@ -8,18 +8,18 @@ namespace steering
 namespace
 {
 
-constexpr float kAngleEpsDeg = 0.05f;
-constexpr float kVelocityEpsDegS = 0.5f;
-constexpr float kDegPerRev = 360.0f;
+constexpr float AngleEpsDeg = 0.05f;
+constexpr float VelocityEpsDegS = 0.5f;
+constexpr float DegPerRev = 360.0f;
 
 } // namespace
 
 float SetpointRamp::wrap360(float angle_deg)
 {
-    angle_deg = std::fmod(angle_deg, kDegPerRev);
+    angle_deg = std::fmod(angle_deg, DegPerRev);
     if (angle_deg < 0.0f)
     {
-        angle_deg += kDegPerRev;
+        angle_deg += DegPerRev;
     }
     return angle_deg;
 }
@@ -29,7 +29,7 @@ float SetpointRamp::wrap180(float angle_deg)
     angle_deg = wrap360(angle_deg);
     if (angle_deg >= 180.0f)
     {
-        angle_deg -= kDegPerRev;
+        angle_deg -= DegPerRev;
     }
     return angle_deg;
 }
@@ -80,8 +80,8 @@ void SetpointRamp::update(float dt_s)
     const float error_deg =
         wrap180(desired_angle_deg - output_angle_deg);
 
-    if ((std::fabs(error_deg) <= kAngleEpsDeg) &&
-        (std::fabs(velocity_deg_s) <= kVelocityEpsDegS))
+    if ((std::fabs(error_deg) <= AngleEpsDeg) &&
+        (std::fabs(velocity_deg_s) <= VelocityEpsDegS))
     {
         output_angle_deg = desired_angle_deg;
         velocity_deg_s = 0.0f;

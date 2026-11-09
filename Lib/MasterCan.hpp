@@ -27,8 +27,8 @@ public:
               uint32_t now_ms);
     void update(uint32_t now_ms);
 
-    static constexpr uint32_t kControlIdBase = 0x100U;
-    static constexpr uint32_t kHeartbeatIdBase = 0x110U;
+    static constexpr uint32_t ControlIdBase = 0x100U;
+    static constexpr uint32_t HeartbeatIdBase = 0x110U;
 
     uint8_t wheel_id;
     uint32_t control_id;

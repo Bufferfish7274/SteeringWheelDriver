@@ -13,88 +13,88 @@ namespace
 constexpr SetpointRampConfig makeRampConfig()
 {
     SetpointRampConfig config = {};
-    config.max_speed_deg_s = config::kRampMaxSpeedDegS;
-    config.max_accel_deg_s2 = config::kRampMaxAccelDegS2;
+    config.max_speed_deg_s = config::RampMaxSpeedDegS;
+    config.max_accel_deg_s2 = config::RampMaxAccelDegS2;
     return config;
 }
 
 constexpr Vesc::Config makeVescConfig()
 {
     Vesc::Config config = {};
-    config.controller_id = config::kVescControllerId;
-    config.online_timeout_ms = config::kVescOnlineTimeoutMs;
+    config.controller_id = config::VescControllerId;
+    config.online_timeout_ms = config::VescOnlineTimeoutMs;
     return config;
 }
 
 constexpr Gm6020::Config makeGm6020Config()
 {
     Gm6020::Config config = {};
-    config.id = config::kGm6020Id;
-    config.zero_raw = config::kGm6020ZeroRaw;
-    config.angle_sign = config::kGm6020AngleSign;
-    config.voltage_sign = config::kGm6020VoltageSign;
-    config.gear_ratio = config::kGm6020GearRatio;
+    config.id = config::Gm6020Id;
+    config.zero_raw = config::Gm6020ZeroRaw;
+    config.angle_sign = config::Gm6020AngleSign;
+    config.voltage_sign = config::Gm6020VoltageSign;
+    config.gear_ratio = config::Gm6020GearRatio;
     config.position =
     {
-        config::kGm6020PosKp,
-        config::kGm6020PosKi,
-        config::kGm6020PosKd,
-        config::kGm6020PosIntegralMax,
-        config::kGm6020PosIntegralSeparate,
-        config::kGm6020PosSeparationDeg
+        config::Gm6020PosKp,
+        config::Gm6020PosKi,
+        config::Gm6020PosKd,
+        config::Gm6020PosIntegralMax,
+        config::Gm6020PosIntegralSeparate,
+        config::Gm6020PosSeparationDeg
     };
     config.speed =
     {
-        config::kGm6020SpeedKp,
-        config::kGm6020SpeedKi,
-        config::kGm6020SpeedKd,
-        config::kGm6020SpeedIntegralMax,
-        config::kGm6020SpeedIntegralSeparate,
-        config::kGm6020SpeedSeparationRpm
+        config::Gm6020SpeedKp,
+        config::Gm6020SpeedKi,
+        config::Gm6020SpeedKd,
+        config::Gm6020SpeedIntegralMax,
+        config::Gm6020SpeedIntegralSeparate,
+        config::Gm6020SpeedSeparationRpm
     };
-    config.control_dt_s = config::kControlDtS;
-    config.max_speed_rpm = config::kGm6020MaxSpeedRpm;
-    config.voltage_limit_raw = config::kGm6020VoltageLimitRaw;
-    config.online_timeout_ms = config::kGm6020OnlineTimeoutMs;
+    config.control_dt_s = config::ControlDtS;
+    config.max_speed_rpm = config::Gm6020MaxSpeedRpm;
+    config.voltage_limit_raw = config::Gm6020VoltageLimitRaw;
+    config.online_timeout_ms = config::Gm6020OnlineTimeoutMs;
     return config;
 }
 
-constexpr SetpointRampConfig kRampConfig = makeRampConfig();
-constexpr Gm6020::Config kGm6020Config = makeGm6020Config();
-constexpr Vesc::Config kVescConfig = makeVescConfig();
+constexpr SetpointRampConfig RampConfig = makeRampConfig();
+constexpr Gm6020::Config Gm6020Config = makeGm6020Config();
+constexpr Vesc::Config VescConfig = makeVescConfig();
 
 #if !WHEEL_BUILD_DEBUG
 constexpr MasterCan::Config makeMasterConfig()
 {
     MasterCan::Config config = {};
-    config.wheel_id = config::kMasterWheelId;
-    config.link_timeout_ms = config::kMasterLinkTimeoutMs;
+    config.wheel_id = config::MasterWheelId;
+    config.link_timeout_ms = config::MasterLinkTimeoutMs;
     return config;
 }
 
-constexpr MasterCan::Config kMasterConfig = makeMasterConfig();
+constexpr MasterCan::Config MasterConfig = makeMasterConfig();
 #else
 constexpr WheelDebugConfig makeDebugConfig()
 {
     WheelDebugConfig config = {};
-    config.target_angle_deg = config::kDebugDefaultAngleDeg;
-    config.direction_erpm = config::kDebugDefaultDirectionErpm;
-    config.target_speed_rpm = config::kDebugDefaultSpeedRpm;
-    config.target_voltage_raw = config::kDebugDefaultVoltageRaw;
-    config.target_erpm = config::kDebugDefaultTargetErpm;
-    config.erpm_limit = config::kDebugDefaultErpmLimit;
-    config.use_ramp = config::kDebugDefaultUseRamp;
-    config.wave_amplitude_deg = config::kDebugDefaultAmplitudeDeg;
-    config.wave_period_ms = config::kDebugDefaultPeriodMs;
-    config.min_period_ms = config::kDebugMinPeriodMs;
-    config.max_amplitude_deg = config::kDebugMaxAmplitudeDeg;
+    config.target_angle_deg = config::DebugDefaultAngleDeg;
+    config.direction_erpm = config::DebugDefaultDirectionErpm;
+    config.target_speed_rpm = config::DebugDefaultSpeedRpm;
+    config.target_voltage_raw = config::DebugDefaultVoltageRaw;
+    config.target_erpm = config::DebugDefaultTargetErpm;
+    config.erpm_limit = config::DebugDefaultErpmLimit;
+    config.use_ramp = config::DebugDefaultUseRamp;
+    config.wave_amplitude_deg = config::DebugDefaultAmplitudeDeg;
+    config.wave_period_ms = config::DebugDefaultPeriodMs;
+    config.min_period_ms = config::DebugMinPeriodMs;
+    config.max_amplitude_deg = config::DebugMaxAmplitudeDeg;
     return config;
 }
 
-constexpr WheelDebugConfig kDebugConfig = makeDebugConfig();
+constexpr WheelDebugConfig DebugConfig = makeDebugConfig();
 #endif
 
-bool isValidPidConfig(const PidConfig &pid)
+bool isValidPidConfig(const Pid::Config &pid)
 {
     return std::isfinite(pid.kp) &&
            std::isfinite(pid.ki) &&
@@ -111,76 +111,76 @@ bool isValidPidConfig(const PidConfig &pid)
 
 bool isValidConfig()
 {
-    if (!std::isfinite(config::kControlDtS) ||
-        (config::kControlDtS <= 0.0f) ||
-        !std::isfinite(config::kRampMaxSpeedDegS) ||
-        (config::kRampMaxSpeedDegS <= 0.0f) ||
-        !std::isfinite(config::kRampMaxAccelDegS2) ||
-        (config::kRampMaxAccelDegS2 <= 0.0f) ||
-        (config::kSelfTestMs == 0U) ||
-        (config::kTelemetryMs == 0U) ||
-        (config::kLedUpdateMs == 0U) ||
-        (config::kDebugHeartbeatMs == 0U))
+    if (!std::isfinite(config::ControlDtS) ||
+        (config::ControlDtS <= 0.0f) ||
+        !std::isfinite(config::RampMaxSpeedDegS) ||
+        (config::RampMaxSpeedDegS <= 0.0f) ||
+        !std::isfinite(config::RampMaxAccelDegS2) ||
+        (config::RampMaxAccelDegS2 <= 0.0f) ||
+        (config::SelfTestMs == 0U) ||
+        (config::TelemetryMs == 0U) ||
+        (config::LedUpdateMs == 0U) ||
+        (config::DebugHeartbeatMs == 0U))
     {
         return false;
     }
 
-    if ((kGm6020Config.id < 1U) ||
-        (kGm6020Config.id > 7U) ||
-        (kGm6020Config.zero_raw > 0x1FFFU) ||
-        ((kGm6020Config.angle_sign != 1) &&
-         (kGm6020Config.angle_sign != -1)) ||
-        ((kGm6020Config.voltage_sign != 1) &&
-         (kGm6020Config.voltage_sign != -1)) ||
-        !std::isfinite(kGm6020Config.gear_ratio) ||
-        (kGm6020Config.gear_ratio <= 0.0f) ||
-        !std::isfinite(kGm6020Config.max_speed_rpm) ||
-        (kGm6020Config.max_speed_rpm <= 0.0f) ||
-        (kGm6020Config.voltage_limit_raw <= 0) ||
-        (kGm6020Config.voltage_limit_raw >
-         Gm6020::kMaxVoltageRaw) ||
-        (kGm6020Config.online_timeout_ms == 0U) ||
-        !isValidPidConfig(kGm6020Config.position) ||
-        !isValidPidConfig(kGm6020Config.speed))
+    if ((Gm6020Config.id < 1U) ||
+        (Gm6020Config.id > 7U) ||
+        (Gm6020Config.zero_raw > 0x1FFFU) ||
+        ((Gm6020Config.angle_sign != 1) &&
+         (Gm6020Config.angle_sign != -1)) ||
+        ((Gm6020Config.voltage_sign != 1) &&
+         (Gm6020Config.voltage_sign != -1)) ||
+        !std::isfinite(Gm6020Config.gear_ratio) ||
+        (Gm6020Config.gear_ratio <= 0.0f) ||
+        !std::isfinite(Gm6020Config.max_speed_rpm) ||
+        (Gm6020Config.max_speed_rpm <= 0.0f) ||
+        (Gm6020Config.voltage_limit_raw <= 0) ||
+        (Gm6020Config.voltage_limit_raw >
+         Gm6020::MaxVoltageRaw) ||
+        (Gm6020Config.online_timeout_ms == 0U) ||
+        !isValidPidConfig(Gm6020Config.position) ||
+        !isValidPidConfig(Gm6020Config.speed))
     {
         return false;
     }
 
-    if ((kVescConfig.controller_id > 0xFFU) ||
-        (kVescConfig.online_timeout_ms == 0U) ||
-        !std::isfinite(config::kMasterAngleSign) ||
-        (std::fabs(config::kMasterAngleSign) != 1.0f) ||
-        !std::isfinite(config::kMasterAngleOffsetDeg))
+    if ((VescConfig.controller_id > 0xFFU) ||
+        (VescConfig.online_timeout_ms == 0U) ||
+        !std::isfinite(config::MasterAngleSign) ||
+        (std::fabs(config::MasterAngleSign) != 1.0f) ||
+        !std::isfinite(config::MasterAngleOffsetDeg))
     {
         return false;
     }
 
 #if WHEEL_BUILD_DEBUG
-    if ((kDebugConfig.use_ramp > 1U) ||
-        (kDebugConfig.erpm_limit < 0) ||
-        (kDebugConfig.min_period_ms == 0U) ||
-        (kDebugConfig.wave_period_ms <
-         kDebugConfig.min_period_ms) ||
-        !std::isfinite(kDebugConfig.max_amplitude_deg) ||
-        (kDebugConfig.max_amplitude_deg <= 0.0f) ||
-        !std::isfinite(kDebugConfig.wave_amplitude_deg) ||
-        (std::fabs(kDebugConfig.wave_amplitude_deg) >
-         kDebugConfig.max_amplitude_deg) ||
-        !std::isfinite(kDebugConfig.target_angle_deg) ||
-        !std::isfinite(kDebugConfig.target_speed_rpm) ||
-        (std::fabs(kDebugConfig.target_speed_rpm) >
-         kGm6020Config.max_speed_rpm) ||
-        (kDebugConfig.target_voltage_raw >
-         kGm6020Config.voltage_limit_raw) ||
-        (kDebugConfig.target_voltage_raw <
-         -kGm6020Config.voltage_limit_raw))
+    if ((DebugConfig.use_ramp > 1U) ||
+        (DebugConfig.erpm_limit < 0) ||
+        (DebugConfig.min_period_ms == 0U) ||
+        (DebugConfig.wave_period_ms <
+         DebugConfig.min_period_ms) ||
+        !std::isfinite(DebugConfig.max_amplitude_deg) ||
+        (DebugConfig.max_amplitude_deg <= 0.0f) ||
+        !std::isfinite(DebugConfig.wave_amplitude_deg) ||
+        (std::fabs(DebugConfig.wave_amplitude_deg) >
+         DebugConfig.max_amplitude_deg) ||
+        !std::isfinite(DebugConfig.target_angle_deg) ||
+        !std::isfinite(DebugConfig.target_speed_rpm) ||
+        (std::fabs(DebugConfig.target_speed_rpm) >
+         Gm6020Config.max_speed_rpm) ||
+        (DebugConfig.target_voltage_raw >
+         Gm6020Config.voltage_limit_raw) ||
+        (DebugConfig.target_voltage_raw <
+         -Gm6020Config.voltage_limit_raw))
     {
         return false;
     }
 #else
-    if ((kMasterConfig.wheel_id < 1U) ||
-        (kMasterConfig.wheel_id > 4U) ||
-        (kMasterConfig.link_timeout_ms == 0U))
+    if ((MasterConfig.wheel_id < 1U) ||
+        (MasterConfig.wheel_id > 4U) ||
+        (MasterConfig.link_timeout_ms == 0U))
     {
         return false;
     }
@@ -234,15 +234,15 @@ void WheelApp::init(CAN_HandleTypeDef *local_can,
     final_target_angle_deg = 0.0f;
     final_target_erpm = 0;
 
-    gm6020.init(hcan1, kGm6020Config);
-    vesc.init(hcan1, kVescConfig);
-    target_ramp.init(0.0f, kRampConfig);
+    gm6020.init(hcan1, Gm6020Config);
+    vesc.init(hcan1, VescConfig);
+    target_ramp.init(0.0f, RampConfig);
 
 #if WHEEL_BUILD_DEBUG
-    WheelDebug::init(g_wheel_debug, debug_runtime, kDebugConfig);
+    WheelDebug::init(g_wheel_debug, debug_runtime, DebugConfig);
 #else
     control_pending = 0U;
-    master.init(kMasterConfig);
+    master.init(MasterConfig);
 #endif
 
     telemetry_.reset();
@@ -343,49 +343,49 @@ uint32_t WheelApp::faultFlags() const
         WheelDebug::usesGmVoltage(mode);
     if (uses_gm && (gm6020_online == 0U))
     {
-        flags |= config::kFaultGm6020Offline;
+        flags |= config::FaultGm6020Offline;
     }
     if (WheelDebug::usesVesc(mode) && (vesc_online == 0U))
     {
-        flags |= config::kFaultVescOffline;
+        flags |= config::FaultVescOffline;
     }
     if (uses_gm && (gm6020.last_tx_status != HAL_OK))
     {
-        flags |= config::kFaultGm6020Tx;
+        flags |= config::FaultGm6020Tx;
     }
     if (WheelDebug::usesVesc(mode) &&
         (vesc.last_tx_status != HAL_OK))
     {
-        flags |= config::kFaultVescTx;
+        flags |= config::FaultVescTx;
     }
 #else
     if (master.link_valid == 0U)
     {
-        flags |= config::kFaultMasterLink;
+        flags |= config::FaultMasterLink;
     }
     if (master.control_seen == 0U)
     {
-        flags |= config::kFaultNoControl;
+        flags |= config::FaultNoControl;
     }
     if (gm6020_online == 0U)
     {
-        flags |= config::kFaultGm6020Offline;
+        flags |= config::FaultGm6020Offline;
     }
     if (vesc_online == 0U)
     {
-        flags |= config::kFaultVescOffline;
+        flags |= config::FaultVescOffline;
     }
     if (need_fresh_control != 0U)
     {
-        flags |= config::kFaultNeedFresh;
+        flags |= config::FaultNeedFresh;
     }
     if (gm6020.last_tx_status != HAL_OK)
     {
-        flags |= config::kFaultGm6020Tx;
+        flags |= config::FaultGm6020Tx;
     }
     if (vesc.last_tx_status != HAL_OK)
     {
-        flags |= config::kFaultVescTx;
+        flags |= config::FaultVescTx;
     }
 #endif
 

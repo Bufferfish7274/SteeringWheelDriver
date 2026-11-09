@@ -53,7 +53,7 @@ void DebugController::step(WheelApp &app)
         app.debug_runtime,
         app.target_ramp,
         app.gm6020.angle_deg,
-        config::kControlDtS);
+        config::ControlDtS);
 
     const uint8_t debug_enable = g_wheel_debug.enable;
     if (app.debug_runtime.mode_changed != 0U)
@@ -62,7 +62,7 @@ void DebugController::step(WheelApp &app)
     }
 
     const WheelDebugMode mode = app.debug_runtime.previous_mode;
-    if (app.ms < config::kSelfTestMs)
+    if (app.ms < config::SelfTestMs)
     {
         clearEnable(app);
         app.gm6020.controlStep(app.ms);

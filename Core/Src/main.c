@@ -10,6 +10,10 @@
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN PV */
+/**
+ * @note main.c里没有app对象，因为这是个.c文件！
+ * g_app的声明放在WheelApp.cpp的最后了
+ */
 /* USER CODE END PV */
 
 void SystemClock_Config(void);

@@ -8,7 +8,7 @@ namespace steering
 namespace
 {
 
-constexpr float kTwoPi = 6.283185307179586f;
+constexpr float TwoPi = 6.283185307179586f;
 
 } // namespace
 
@@ -158,7 +158,7 @@ void WheelDebug::update(WheelDebugInput &debug,
         desired_angle_deg =
             runtime.sine_origin_deg +
             (amplitude_deg *
-             std::sin(kTwoPi * runtime.sine_phase));
+             std::sin(TwoPi * runtime.sine_phase));
         runtime.sine_phase +=
             dt_s / (static_cast<float>(period_ms) * 0.001f);
         if (runtime.sine_phase >= 1.0f)

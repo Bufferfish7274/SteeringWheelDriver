@@ -6,12 +6,12 @@ namespace steering::bsp_can
 namespace
 {
 
-constexpr uint32_t kCan2FirstFilterBank = 14U;
-constexpr uint32_t kStandardIdMask = 0x7FFU;
+constexpr uint32_t Can2FirstFilterBank = 14U;
+constexpr uint32_t StandardIdMask = 0x7FFU;
 
 uint32_t firstFilterBank(const CAN_HandleTypeDef *hcan)
 {
-    return (hcan->Instance == CAN2) ? kCan2FirstFilterBank : 0U;
+    return (hcan->Instance == CAN2) ? Can2FirstFilterBank : 0U;
 }
 
 HAL_StatusTypeDef configureStdFilter(
@@ -27,11 +27,11 @@ HAL_StatusTypeDef configureStdFilter(
     filter.FilterIdHigh = static_cast<uint16_t>(std_id << 5U);
     filter.FilterIdLow = 0U;
     filter.FilterMaskIdHigh =
-        static_cast<uint16_t>(kStandardIdMask << 5U);
+        static_cast<uint16_t>(StandardIdMask << 5U);
     filter.FilterMaskIdLow = 0U;
     filter.FilterFIFOAssignment = CAN_RX_FIFO0;
     filter.FilterActivation = ENABLE;
-    filter.SlaveStartFilterBank = kCan2FirstFilterBank;
+    filter.SlaveStartFilterBank = Can2FirstFilterBank;
 
     return HAL_CAN_ConfigFilter(hcan, &filter);
 }
@@ -68,7 +68,7 @@ HAL_StatusTypeDef startAcceptAll(CAN_HandleTypeDef *hcan)
     filter.FilterMaskIdLow = 0U;
     filter.FilterFIFOAssignment = CAN_RX_FIFO0;
     filter.FilterActivation = ENABLE;
-    filter.SlaveStartFilterBank = kCan2FirstFilterBank;
+    filter.SlaveStartFilterBank = Can2FirstFilterBank;
 
     const HAL_StatusTypeDef status =
         HAL_CAN_ConfigFilter(hcan, &filter);
@@ -85,8 +85,8 @@ HAL_StatusTypeDef startMasterFilter(
     uint32_t heartbeat_id)
 {
     if ((hcan == nullptr) ||
-        (control_id > kStandardIdMask) ||
-        (heartbeat_id > kStandardIdMask))
+        (control_id > StandardIdMask) ||
+        (heartbeat_id > StandardIdMask))
     {
         return HAL_ERROR;
     }

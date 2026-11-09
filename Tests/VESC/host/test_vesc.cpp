@@ -76,7 +76,7 @@ static void MakeStatusHeader(CAN_RxHeaderTypeDef *header)
 {
     std::memset(header, 0, sizeof(*header));
     header->ExtId =
-        (steering::Vesc::kPacketStatus << 8U) | 67U;
+        (steering::Vesc::PacketStatus << 8U) | 67U;
     header->IDE = CAN_ID_EXT;
     header->RTR = CAN_RTR_DATA;
     header->DLC = 8U;
@@ -107,7 +107,7 @@ static void Test_StatusDecode(void)
     Check(vesc.last_rx_ms == 1000U, "status timestamp");
 
     header.ExtId =
-        (steering::Vesc::kPacketStatus << 8U) | 68U;
+        (steering::Vesc::PacketStatus << 8U) | 68U;
     vesc.onRx(&header, data, 1010U);
     Check(vesc.last_rx_ms == 1000U, "wrong controller ID ignored");
 
