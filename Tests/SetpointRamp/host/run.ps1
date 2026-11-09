@@ -2,17 +2,19 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $libPath = Join-Path $projectRoot "Lib"
-$source = Join-Path $PSScriptRoot "test_setpoint_ramp.c"
+$source = Join-Path $PSScriptRoot "test_setpoint_ramp.cpp"
 $exe = Join-Path $env:TEMP "setpoint_ramp_host_test.exe"
 
-& gcc `
-    -std=c99 `
+& g++ `
+    -std=c++17 `
     -Wall `
     -Wextra `
     -Werror `
+    -fno-exceptions `
+    -fno-rtti `
     -I $libPath `
     $source `
-    (Join-Path $libPath "setpoint_ramp.c") `
+    (Join-Path $libPath "SetpointRamp.cpp") `
     -lm `
     -o $exe
 

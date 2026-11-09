@@ -3,15 +3,14 @@
 基于 STM32F405RGT6 的单舵轮控制固件。分控板通过 CAN2 接收主控目标，
 通过 CAN1 控制 GM6020 舵向电机和 VESC 轮向驱动，并输出 UART 调试遥测。
 
-2.0 设计思路、功能范围和版本边界见
-[Docs/Design-v2.0.md](Docs/Design-v2.0.md)。1.0 历史设计见
-[Docs/Design-v1.0.md](Docs/Design-v1.0.md)。
+3.0 设计思路、功能范围和版本边界见[Docs/Design-v3.0.md](Docs/Design-v3.0.md)。
+1.0 历史设计见[Docs/Design-v1.0.md](Docs/Design-v1.0.md)。
 
 ## 系统结构
 
 ```text
 主控板
-  │ CAN2：0x101 控制 / 0x111 心跳
+  │ CAN2：0x10+轮号 控制 / 0x11+轮号 心跳
   ▼
 舵轮分控板
   ├─ App：组合对象、安全状态机、构建模式调度
@@ -50,7 +49,7 @@
 | VESC 控制器 ID    | 67                    |
 | 主控角度映射         | `sign=+1`、`offset=0°` |
 
-配置集中在 [AppConfig.h](App/AppConfig.h)。修改机械零位、设备 ID、
+配置集中在 [AppConfig.hpp](App/AppConfig.hpp)。修改机械零位、设备 ID、
 PID、斜坡或安全限幅时，应优先修改这些宏，不要在业务函数中写死。
 
 ## 模块文档
@@ -62,10 +61,10 @@ PID、斜坡或安全限幅时，应优先修改这些宏，不要在业务函�
 `main.c` 只保留外设初始化和 App 调用。启动顺序为：
 
 1. 初始化 GPIO、CAN1、CAN2、TIM6 和 USART1；
-2. `App_Init()` 初始化 GM6020、VESC、位置斜坡和构建对应的输入层；
-3. `App_Start()` 启动 CAN1，正式版继续启动 CAN2 并只接收 `0x101`/`0x111`；
+2. `WheelApp_Init()` 初始化 GM6020、VESC、位置斜坡和构建对应的输入层；
+3. `WheelApp_Start()` 启动 CAN1，正式版继续启动 CAN2 并只接收 `0x101`/`0x111`；
 4. 最后启动 TIM6 1 kHz 中断；
-5. 主循环只调用 `App_Loop()`，由 App 调度 LED 和串口遥测。
+5. 主循环只调用 `WheelApp_Loop()`，由 App 调度 LED 和串口遥测。
 
 上电后前 500 ms 四个 LED 常亮，同时禁止两个执行器使能。
 
@@ -170,14 +169,14 @@ GM6020 目标角经过位置斜坡：
 ## 机械零位校准
 
 GM6020 原始角范围为 `0..8191`。修改
-`APP_GM6020_ZERO_RAW` 后，反馈角和目标角会同时以新位置为 `0°`。
+`steering::config::Gm6020ZeroRaw` 后，反馈角和目标角会同时以新位置为 `0°`。
 
 推荐流程：
 
 1. 给分控板供电，但不连接主控，确保电机失能；
 2. 将舵轮转到机械零位；
 3. 在 Keil Watch 中读取 `g_app.gm6020.raw_angle`；
-4. 将 [AppConfig.h](App/AppConfig.h) 中 `APP_GM6020_ZERO_RAW` 改为该值；
+4. 将 [AppConfig.hpp](App/AppConfig.hpp) 中 `steering::config::Gm6020ZeroRaw` 改为该值；
 5. 重新编译、烧录；
 6. 保持主控断开，确认 GM6020 实际角显示接近 `0°`；
 7. 正反旋转舵轮，确认角度变化方向正确。
@@ -280,7 +279,7 @@ MDK-ARM/SteeringWheelDriver.uvprojx
 ```
 
 工程只有一个构建目标 `SteeringWheelDriver`。正式和调试固件通过
-[AppConfig.h](App/AppConfig.h) 顶部的 `WHEEL_BUILD_DEBUG` 切换：
+[AppConfig.hpp](App/AppConfig.hpp) 顶部的 `WHEEL_BUILD_DEBUG` 切换：
 
 - `WHEEL_BUILD_DEBUG=0`：正式主控链路；
 - `WHEEL_BUILD_DEBUG=1`：只启动 CAN1，通过 Watch 中的

@@ -2,17 +2,19 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $libPath = Join-Path $projectRoot "Lib"
-$source = Join-Path $PSScriptRoot "test_angle_opt.c"
+$source = Join-Path $PSScriptRoot "test_angle_opt.cpp"
 $exe = Join-Path $env:TEMP "angle_opt_host_test.exe"
 
-& gcc `
-    -std=c99 `
+& g++ `
+    -std=c++17 `
     -Wall `
     -Wextra `
     -Werror `
+    -fno-exceptions `
+    -fno-rtti `
     -I $libPath `
     $source `
-    (Join-Path $libPath "angle_opt.c") `
+    (Join-Path $libPath "AngleOpt.cpp") `
     -lm `
     -o $exe
 
