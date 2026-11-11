@@ -56,7 +56,9 @@ D:\keil5\UV4\UV4.exe -b MDK-ARM\SteeringWheelDriver.uvprojx -j0 -o build.log
 - 0 Error、0 Warning；
 - C/C++ 文件分别使用 GNU11/C++17；
 - `g_app` 和 `g_wheel_debug` 位于 `.bss`；
-- 正式版 CAN ID、DLC、数据布局和 27 列遥测不变；
+- 正式版使用 `0x101`/`0x102` 组控制、`0x111`/`0x112` 组心跳、
+  DLC 8 和每轮 4 字节槽位；
+- 正式版 27 列遥测不变；
 - 调试版前 27 列及附加列顺序不变；
 - 无堆分配和非必要动态初始化；
 - RAM 总量不超过 2.0 AC5 基线的合理范围。
@@ -69,12 +71,12 @@ D:\keil5\UV4\UV4.exe -b MDK-ARM\SteeringWheelDriver.uvprojx -j0 -o build.log
 
 ## 本次验证结果
 
-验证日期：2026-11-06。
+验证日期：2026-11-11。
 
 | 项目 | 结果 |
 | --- | --- |
 | 7 组主机测试 | 全部通过，包括正式/调试 App 双构建 |
-| 正式固件 | 0 Error，0 Warning；Code 16564，RO 640，RW 12，ZI 2796 |
+| 正式固件 | 0 Error，0 Warning；Code 16608，RO 640，RW 12，ZI 2796 |
 | 调试固件 | 0 Error，0 Warning；Code 18492，RO 708，RW 12，ZI 2836 |
 | 最大静态调用栈 | 368 bytes |
 | Watch 对象 | `g_app` 和 `g_wheel_debug` 位于 `.bss` |

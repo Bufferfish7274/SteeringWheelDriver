@@ -32,15 +32,18 @@ HAL_StatusTypeDef steering::bsp_can::startMasterFilter(
 
 ### `bsp_can::startMasterFilter`
 
-配置两个精确匹配的标准 ID。ID 由 `MasterCan` 根据本轮配置生成后
-传入，低层 CAN 模块不重复定义轮号到协议的映射：
+配置两个精确匹配的标准 ID。ID 由 `MasterCan` 根据轮号所属的控制组生成
+后传入，低层 CAN 模块不重复定义轮号到协议的映射：
 
 ```text
-control_id     控制帧
-heartbeat_id   心跳帧
+control_id     本组控制帧
+heartbeat_id   本组心跳帧
 ```
 
 CAN1 使用 bank 0/1，CAN2 使用 bank 14/15。
+
+轮 1/2 注册 `0x101`/`0x111`，轮 3/4 注册 `0x102`/`0x112`。每个分控
+只接收自己所属组，并在组控制帧内选择本轮的固定槽位。
 
 ## 过滤器位数
 
@@ -69,8 +72,10 @@ TIM6 必须最后启动，避免控制周期开始运行时 CAN 尚未就绪。
 
 ## 测试
 
-过滤器 bank、ID 和配置顺序由 GM6020 主机测试覆盖：
+过滤器 bank、ID 和配置顺序由 GM6020 主机测试覆盖；主控组 ID 和槽位
+由 MasterCan 主机测试覆盖：
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\Tests\MasterCan\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\GM6020\host\run.ps1
 ```

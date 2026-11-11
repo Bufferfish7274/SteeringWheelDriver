@@ -29,22 +29,24 @@ void Error_Handler(void)
     g_failures++;
 }
 
-static void MakeControlData(uint8_t data[8],
-                            int32_t erpm,
-                            int32_t angle_code)
+static void MakeGroupData(uint8_t data[8],
+                          int16_t first_erpm,
+                          uint16_t first_angle_code,
+                          int16_t second_erpm,
+                          uint16_t second_angle_code)
 {
-    uint32_t erpm_raw = (uint32_t)erpm;
-    uint32_t angle_raw = (uint32_t)angle_code;
+    const uint16_t first_erpm_raw = (uint16_t)first_erpm;
+    const uint16_t second_erpm_raw = (uint16_t)second_erpm;
 
-    data[0] = (uint8_t)(erpm_raw >> 24U);
-    data[1] = (uint8_t)(erpm_raw >> 16U);
-    data[2] = (uint8_t)(erpm_raw >> 8U);
-    data[3] = (uint8_t)erpm_raw;
+    data[0] = (uint8_t)(first_erpm_raw >> 8U);
+    data[1] = (uint8_t)first_erpm_raw;
+    data[2] = (uint8_t)(first_angle_code >> 8U);
+    data[3] = (uint8_t)first_angle_code;
 
-    data[4] = (uint8_t)(angle_raw >> 24U);
-    data[5] = (uint8_t)(angle_raw >> 16U);
-    data[6] = (uint8_t)(angle_raw >> 8U);
-    data[7] = (uint8_t)angle_raw;
+    data[4] = (uint8_t)(second_erpm_raw >> 8U);
+    data[5] = (uint8_t)second_erpm_raw;
+    data[6] = (uint8_t)(second_angle_code >> 8U);
+    data[7] = (uint8_t)second_angle_code;
 }
 
 static CAN_RxHeaderTypeDef MakeHeader(uint32_t std_id)
@@ -66,9 +68,17 @@ static void Test_WheelIds(void)
     Check(master.control_id == 0x101U, "wheel1 control id");
     Check(master.heartbeat_id == 0x111U, "wheel1 heartbeat id");
 
+    InitMaster(master, 2U);
+    Check(master.control_id == 0x101U, "wheel2 uses group1 control id");
+    Check(master.heartbeat_id == 0x111U, "wheel2 uses group1 heartbeat id");
+
+    InitMaster(master, 3U);
+    Check(master.control_id == 0x102U, "wheel3 uses group2 control id");
+    Check(master.heartbeat_id == 0x112U, "wheel3 uses group2 heartbeat id");
+
     InitMaster(master, 4U);
-    Check(master.control_id == 0x104U, "wheel4 control id");
-    Check(master.heartbeat_id == 0x114U, "wheel4 heartbeat id");
+    Check(master.control_id == 0x102U, "wheel4 uses group2 control id");
+    Check(master.heartbeat_id == 0x112U, "wheel4 uses group2 heartbeat id");
 }
 
 static void Test_Decode(void)
@@ -82,28 +92,58 @@ static void Test_Decode(void)
     Check(master.control_seen == 0U, "no control before first frame");
     Check(master.link_valid == 0U, "no link before first frame");
 
-    MakeControlData(data, -1234, 8192);
+    MakeGroupData(data, -1234, 8192, 2345, 4096);
     header = MakeHeader(0x101U);
     master.onRx(&header, data, 100U);
 
-    Check(master.drive_erpm == -1234, "signed ERPM decode");
-    Check(master.angle_code == 8192U, "angle code decode");
+    Check(master.drive_erpm == -1234, "wheel1 signed ERPM decode");
+    Check(master.angle_code == 8192U, "wheel1 angle code decode");
     Check(std::fabs(master.target_angle_deg - 180.0f) < 0.001f,
-          "angle code to degrees");
+          "wheel1 angle code to degrees");
     Check(master.control_seen == 1U, "control available immediately");
     Check(master.link_valid == 1U, "control counts as heartbeat");
 
-    MakeControlData(data, 0, 16383);
+    InitMaster(master, 2U);
+    master.onRx(&header, data, 105U);
+    Check(master.drive_erpm == 2345, "wheel2 uses second ERPM slot");
+    Check(master.angle_code == 4096U, "wheel2 uses second angle slot");
+    Check(std::fabs(master.target_angle_deg - 90.0f) < 0.001f,
+          "wheel2 angle code to degrees");
+
+    InitMaster(master, 3U);
+    header = MakeHeader(0x102U);
     master.onRx(&header, data, 110U);
+    Check(master.drive_erpm == -1234, "wheel3 uses first ERPM slot");
+    Check(master.angle_code == 8192U, "wheel3 uses first angle slot");
+
+    InitMaster(master, 4U);
+    master.onRx(&header, data, 115U);
+    Check(master.drive_erpm == 2345, "wheel4 uses second ERPM slot");
+    Check(master.angle_code == 4096U, "wheel4 uses second angle slot");
+
+    InitMaster(master, 1U);
+    MakeGroupData(data, INT16_MIN, 0U, INT16_MAX, 16383U);
+    header = MakeHeader(0x101U);
+    master.onRx(&header, data, 120U);
+    Check(master.drive_erpm == INT16_MIN, "minimum int16 ERPM decode");
+    Check(master.angle_code == 0U, "zero angle code");
+
+    InitMaster(master, 2U);
+    master.onRx(&header, data, 125U);
+    Check(master.drive_erpm == INT16_MAX, "maximum int16 ERPM decode");
     Check(master.angle_code == 16383U, "angle upper bound");
 
-    MakeControlData(data, 0, 16384);
-    master.onRx(&header, data, 120U);
+    MakeGroupData(data, 0, 16384U, 0, 0U);
+    master.onRx(&header, data, 130U);
+    Check(master.angle_code == 0U, "wheel2 ignores wheel1 angle");
+
+    InitMaster(master, 1U);
+    master.onRx(&header, data, 110U);
     Check(master.angle_code == 16383U, "angle over upper bound clamps");
 
-    MakeControlData(data, 0, -1);
-    master.onRx(&header, data, 130U);
-    Check(master.angle_code == 0U, "negative angle clamps to zero");
+    MakeGroupData(data, 0, 0xFFFFU, 0, 0U);
+    master.onRx(&header, data, 140U);
+    Check(master.angle_code == 16383U, "0xFFFF angle clamps");
 }
 
 static void Test_InputValidation(void)
@@ -116,7 +156,12 @@ static void Test_InputValidation(void)
 
     header = MakeHeader(0x102U);
     master.onRx(&header, data, 100U);
-    Check(master.control_seen == 0U, "wrong control id ignored");
+    Check(master.control_seen == 0U, "other group control id ignored");
+    Check(master.link_valid == 0U, "other group control does not refresh link");
+
+    header = MakeHeader(0x112U);
+    master.onRx(&header, data, 105U);
+    Check(master.link_valid == 0U, "other group heartbeat ignored");
 
     header = MakeHeader(0x101U);
     header.IDE = CAN_ID_EXT;
@@ -141,8 +186,8 @@ static void Test_TimeoutAndHeartbeat(void)
     uint8_t data[8];
 
     InitMaster(master, 2U);
-    MakeControlData(data, 100, 0);
-    header = MakeHeader(0x102U);
+    MakeGroupData(data, 0, 0U, 100, 0U);
+    header = MakeHeader(0x101U);
     master.onRx(&header, data, 100U);
 
     master.update(300U);
@@ -161,15 +206,15 @@ static void Test_TimeoutAndHeartbeat(void)
           "link expiry preserves last decoded ERPM");
 
     InitMaster(master, 2U);
-    header = MakeHeader(0x112U);
+    header = MakeHeader(0x111U);
     master.onRx(&header, data, 100U);
     Check(master.link_valid == 1U, "heartbeat alone keeps link");
     Check(master.control_seen == 0U, "heartbeat does not create control");
 
-    MakeControlData(data, 100, 0);
-    header = MakeHeader(0x102U);
+    MakeGroupData(data, 0, 0U, 100, 0U);
+    header = MakeHeader(0x101U);
     master.onRx(&header, data, 100U);
-    header = MakeHeader(0x112U);
+    header = MakeHeader(0x111U);
     master.onRx(&header, data, 400U);
     master.update(500U);
     Check(master.control_seen == 1U,
@@ -186,18 +231,27 @@ static void Test_TimeoutAndHeartbeat(void)
     Check(master.link_valid == 0U,
           "heartbeat link expires after 500 ms");
 
-    header = MakeHeader(0x112U);
+    header = MakeHeader(0x111U);
     master.onRx(&header, data, 1000U);
     Check(master.link_valid == 1U, "heartbeat restores link");
     Check(master.control_seen == 0U,
           "heartbeat recovery does not restore old control");
 
-    MakeControlData(data, 200, 4096);
-    header = MakeHeader(0x102U);
+    MakeGroupData(data, 999, 8192U, 100, 0U);
+    header = MakeHeader(0x101U);
     master.onRx(&header, data, 1100U);
     Check(master.control_seen == 1U,
-          "new control restores available command");
-    Check(master.drive_erpm == 200, "new control replaces old target");
+          "group frame restores available command");
+    Check(master.drive_erpm == 100,
+          "peer target change preserves this wheel target");
+    Check(master.angle_code == 0U,
+          "peer angle change preserves this wheel angle");
+
+    MakeGroupData(data, 999, 8192U, 200, 4096U);
+    master.onRx(&header, data, 1200U);
+    Check(master.drive_erpm == 200, "new group target replaces old target");
+    Check(master.angle_code == 4096U,
+          "new group angle replaces old angle");
 }
 
 static void Test_TimeWrap(void)
@@ -207,7 +261,7 @@ static void Test_TimeWrap(void)
     uint8_t data[8];
 
     InitMaster(master, 1U);
-    MakeControlData(data, 0, 0);
+    MakeGroupData(data, 0, 0U, 0, 0U);
     header = MakeHeader(0x101U);
     master.onRx(&header, data, 0xFFFFFFF0U);
 
