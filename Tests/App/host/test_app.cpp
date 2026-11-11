@@ -205,23 +205,23 @@ static void InjectVescStatus(int32_t erpm)
 }
 
 #if !WHEEL_BUILD_DEBUG
-static void InjectMasterControl(int32_t erpm, uint16_t angle_code)
+static void InjectMasterControl(int16_t erpm, uint16_t angle_code)
 {
-    const uint32_t erpm_raw = static_cast<uint32_t>(erpm);
+    const uint16_t erpm_raw = static_cast<uint16_t>(erpm);
 
     g_rx_header.StdId = 0x101U;
     g_rx_header.ExtId = 0U;
     g_rx_header.IDE = CAN_ID_STD;
     g_rx_header.RTR = CAN_RTR_DATA;
     g_rx_header.DLC = 8U;
-    g_rx_data[0] = static_cast<uint8_t>(erpm_raw >> 24U);
-    g_rx_data[1] = static_cast<uint8_t>(erpm_raw >> 16U);
-    g_rx_data[2] = static_cast<uint8_t>(erpm_raw >> 8U);
-    g_rx_data[3] = static_cast<uint8_t>(erpm_raw);
+    g_rx_data[0] = static_cast<uint8_t>(erpm_raw >> 8U);
+    g_rx_data[1] = static_cast<uint8_t>(erpm_raw);
+    g_rx_data[2] = static_cast<uint8_t>(angle_code >> 8U);
+    g_rx_data[3] = static_cast<uint8_t>(angle_code);
     g_rx_data[4] = 0U;
     g_rx_data[5] = 0U;
-    g_rx_data[6] = static_cast<uint8_t>(angle_code >> 8U);
-    g_rx_data[7] = static_cast<uint8_t>(angle_code);
+    g_rx_data[6] = 0U;
+    g_rx_data[7] = 0U;
     g_rx_pending = 1U;
 }
 #endif
@@ -372,6 +372,8 @@ static int RunProductionTests()
           "production build starts the control timer");
     Check(app.master.control_id == 0x101U,
           "master control ID comes from config");
+    Check(app.master.heartbeat_id == 0x111U,
+          "master heartbeat ID comes from config");
 
     AdvanceMs(app, steering::config::SelfTestMs + 1U);
     InjectGmFeedback(steering::config::Gm6020ZeroRaw, 0);

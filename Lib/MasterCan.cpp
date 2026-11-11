@@ -14,8 +14,10 @@ void MasterCan::init(const Config &config)
     }
 
     wheel_id = static_cast<uint8_t>(config.wheel_id);
-    control_id = ControlIdBase + wheel_id;
-    heartbeat_id = HeartbeatIdBase + wheel_id;
+    const uint32_t group =
+        (static_cast<uint32_t>(wheel_id) + 1U) / 2U;
+    control_id = ControlIdBase + group;
+    heartbeat_id = HeartbeatIdBase + group;
     drive_erpm = 0;
     angle_code = 0U;
     target_angle_deg = 0.0f;
@@ -44,28 +46,29 @@ void MasterCan::onRx(const CAN_RxHeaderTypeDef *header,
 
     if (header->StdId == control_id)
     {
-        const uint32_t erpm_raw =
-            (static_cast<uint32_t>(data[0]) << 24U) |
-            (static_cast<uint32_t>(data[1]) << 16U) |
-            (static_cast<uint32_t>(data[2]) << 8U) |
-            static_cast<uint32_t>(data[3]);
-        int32_t angle_raw = static_cast<int32_t>(
-            (static_cast<uint32_t>(data[4]) << 24U) |
-            (static_cast<uint32_t>(data[5]) << 16U) |
-            (static_cast<uint32_t>(data[6]) << 8U) |
-            static_cast<uint32_t>(data[7]));
+        const uint32_t slot_offset =
+            ((static_cast<uint32_t>(wheel_id) - 1U) % 2U) * 4U;
+        const uint16_t erpm_raw =
+            static_cast<uint16_t>(
+                (static_cast<uint16_t>(
+                     data[slot_offset]) << 8U) |
+                static_cast<uint16_t>(data[slot_offset + 1U]));
+        uint16_t angle_raw =
+            static_cast<uint16_t>(
+                (static_cast<uint16_t>(
+                     data[slot_offset + 2U]) << 8U) |
+                static_cast<uint16_t>(data[slot_offset + 3U]));
 
-        if (angle_raw < 0)
+        if (angle_raw > 16383U)
         {
-            angle_raw = 0;
-        }
-        else if (angle_raw > 16383)
-        {
-            angle_raw = 16383;
+            angle_raw = 16383U;
         }
 
-        drive_erpm = static_cast<int32_t>(erpm_raw);
-        angle_code = static_cast<uint16_t>(angle_raw);
+        drive_erpm =
+            ((erpm_raw & 0x8000U) != 0U)
+                ? (static_cast<int32_t>(erpm_raw) - 65536)
+                : static_cast<int32_t>(erpm_raw);
+        angle_code = angle_raw;
         target_angle_deg =
             static_cast<float>(angle_code) *
             (360.0f / 16384.0f);
