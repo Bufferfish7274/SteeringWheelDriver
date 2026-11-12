@@ -12,14 +12,11 @@
 | 适用范围 | 单舵轮、单 GM6020、单 VESC |
 | 配套文档 | [项目 README](../README.md)、[3.0 测试说明](../Tests/README.md)、[调试模式](DebugMode.md)、[模块文档](../Lib/Docs/README.md) |
 
-3.0 将 2.0 的类型化配置和函数式分层重组为 C++17 核心，同时保持 CAN
-协议、安全逻辑、串口列序和 Keil Watch 调参路径不变。1.0 与 2.0 文档
-继续作为历史版本保留。
+3.0 将 2.0 的类型化配置和函数式分层重组为 C++17 核心，同时保持 CAN协议、安全逻辑、串口列序和 Keil Watch 调参路径不变。
 
 ## 1. 设计目标
 
-3.0 的目标不是引入运行时多态或复杂 C++ 框架，而是让对象所有权、
-生命周期、配置注入和模块边界在编译期明确：
+实际上，2.0版本的代码组织风格已经接近C++。因此，3.0 的目标不是引入运行时多态或复杂 C++ 框架，而是让对象所有权、生命周期、配置注入和模块边界在编译期明确：
 
 1. 手写 App、驱动和算法全部使用 C++17；
 2. CubeMX `Core`、启动文件和 STM32 HAL 保持 C11；
@@ -55,21 +52,21 @@ BspCan → STM32 HAL（C）
 
 ## 3. 模块职责
 
-| 模块 | C++ 形态 | 主要职责 |
-| --- | --- | --- |
-| `WheelApp` | 类 | 对象所有权、HAL 事件、1 kHz 调度、公共在线和安全状态 |
-| `ProductionController` | 类 | 主控新鲜命令、坐标映射、AngleOpt、整轮安全与目标下发 |
-| `DebugController` | 类 | Watch 模式、阶跃/正弦、调试使能和设备在线门控 |
-| `Gm6020` | 类 | 反馈解码、两种 PID、三种控制模式和 CAN 发送 |
-| `Vesc` | 类 | ERPM 指令、状态反馈、在线超时和控制模式 |
-| `MasterCan` | 类 | 主控控制/心跳解析、目标持久和链路恢复 |
-| `Pid` | 类 | 积分分离、抗饱和和位置式 PID |
-| `SetpointRamp` | 类 | 位置参考速度/加速度限制 |
-| `WheelDebug` | 类 + Watch 结构 | 调试输入和波形目标生成 |
-| `AngleOpt` | 命名空间函数 | 无状态物理等价舵向选择 |
-| `BspCan` | 命名空间函数 | 无状态 bxCAN 过滤器和启动配置 |
-| `Telemetry` | 类 | 只读 CSV 组装和非阻塞 UART 发送 |
-| `StatusLeds` | 类 | 只读状态到 LED 的映射 |
+| 模块                     | C++ 形态       | 主要职责                            |
+| ---------------------- | ------------ | ------------------------------- |
+| `WheelApp`             | 类            | 对象所有权、HAL 事件、1 kHz 调度、公共在线和安全状态 |
+| `ProductionController` | 类            | 主控新鲜命令、坐标映射、AngleOpt、整轮安全与目标下发  |
+| `DebugController`      | 类            | Watch 模式、阶跃/正弦、调试使能和设备在线门控      |
+| `Gm6020`               | 类            | 反馈解码、两种 PID、三种控制模式和 CAN 发送      |
+| `Vesc`                 | 类            | ERPM 指令、状态反馈、在线超时和控制模式          |
+| `MasterCan`            | 类            | 主控控制/心跳解析、目标持久和链路恢复             |
+| `Pid`                  | 类            | 积分分离、抗饱和和位置式 PID                |
+| `SetpointRamp`         | 类            | 位置参考速度/加速度限制                    |
+| `WheelDebug`           | 类 + Watch 结构 | 调试输入和波形目标生成                     |
+| `AngleOpt`             | 命名空间函数       | 无状态物理等价舵向选择                     |
+| `BspCan`               | 命名空间函数       | 无状态 bxCAN 过滤器和启动配置              |
+| `Telemetry`            | 类            | 只读 CSV 组装和非阻塞 UART 发送           |
+| `StatusLeds`           | 类            | 只读状态到 LED 的映射                   |
 
 正式和调试控制器在编译期二选一。二者使用 `WheelApp` 中的同一批驱动、
 控制周期和位置斜坡对象，不创建调试状态副本。
@@ -162,7 +159,7 @@ g++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -fno-rtti
 | `Tests/AngleOpt` | 最近物理等价方向、90° 最大选择位移和边界 |
 | `Tests/SetpointRamp` | 速度/加速度限制、跨零路径和运行中目标变化 |
 
-运行命令：
+在项目根目录运行命令：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Tests\App\host\run.ps1
@@ -174,19 +171,7 @@ powershell -ExecutionPolicy Bypass -File .\Tests\AngleOpt\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\SetpointRamp\host\run.ps1
 ```
 
-### 7.2 目标机构建
-
-使用 `UV4 -b` 分别构建 `WHEEL_BUILD_DEBUG=0` 和 `1`，验收条件：
-
-- 0 Error、0 Warning；
-- C 文件使用 GNU11，C++ 文件使用 C++17；
-- CAN ID、DLC 和数据布局不变；
-- 正式版前 27 列遥测不变，调试版附加列顺序不变；
-- 无堆分配、虚函数和非必要动态初始化；
-- `g_app`、`g_wheel_debug` 位于 `.bss`；
-- Flash/RAM 不超过 2.0 AC5 基线的合理范围。
-
-### 7.3 台架验收
+### 7.2 台架验收
 
 主机测试不能替代真实电机验证。烧录前必须固定机构，并按调试文档完成：
 
@@ -196,12 +181,3 @@ powershell -ExecutionPolicy Bypass -File .\Tests\SetpointRamp\host\run.ps1
 4. 先速度环、后位置环调参；
 5. VESC 小 ERPM 测试；
 6. 正式固件联调主控链路、断线失能和恢复后新命令要求。
-
-## 8. 兼容性与边界
-
-- 主控、GM6020、VESC 的线协议不变；
-- 正式和调试遥测列序不变；
-- `WHEEL_BUILD_DEBUG` 单 Target 工作流不变；
-- 现有 Watch 调参成员链不变；
-- CubeMX 重新生成只覆盖 `Core` 中对应区域，手写 C++ 不受影响；
-- 当前仍只支持单舵轮、单 GM6020、单 VESC 和单圈舵向角。

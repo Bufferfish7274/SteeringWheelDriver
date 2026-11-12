@@ -6,8 +6,7 @@
 
 ## 构建与上电
 
-工程只有一个 Keil Target。把 `App/AppConfig.hpp` 中的
-`WHEEL_BUILD_DEBUG` 改为 1，重新编译并烧录；改回 0 即恢复正式固件。
+把 `App/AppConfig.hpp` 中的`WHEEL_BUILD_DEBUG` 改为 1，重新编译并烧录；改回 0 即恢复正式固件。
 上电后的 500 ms 自检期间四个 LED 常亮，两个执行器保持失能。
 
 Watch 中首先展开：
@@ -39,6 +38,7 @@ g_wheel_debug.enable = 1
 
 ## GM6020 位置阶跃
 
+示例配置
 ```text
 g_wheel_debug.mode = 1
 g_wheel_debug.target_angle_deg = 30
@@ -52,15 +52,13 @@ g_wheel_debug.enable = 1
 - `direction_erpm=0` 时仍选择距离当前舵向更近的物理候选，可能把目标角
   改到反向朝向；
 - `use_ramp=1` 时目标先经过位置斜坡，0 时直接进入位置环；
-- 正弦模式下 `wave_amplitude_deg` 限制到
-  `APP_DEBUG_MAX_AMPLITUDE_DEG`，周期不小于
-  `APP_DEBUG_MIN_PERIOD_MS`；
 - 调试位置模式和正式控制共用 `g_app.target_ramp`，斜坡参数只来自
   `APP_RAMP_*`。
 
-## GM6020 正弦和速度
+## GM6020 正弦
 
-正弦模式默认从使能时的实际位置起相：
+正弦模式默认从使能时的实际位置起相。
+示例配置：
 
 ```text
 g_wheel_debug.mode = 2
@@ -70,8 +68,11 @@ g_wheel_debug.direction_erpm = 100
 g_wheel_debug.use_ramp = 1
 g_wheel_debug.enable = 1
 ```
+- 正弦模式下 `wave_amplitude_deg` 限制到`APP_DEBUG_MAX_AMPLITUDE_DEG`，周期不小于`APP_DEBUG_MIN_PERIOD_MS`；
 
-速度环阶跃：
+## GM6020 速度阶跃
+
+示例配置：
 
 ```text
 g_wheel_debug.mode = 3
@@ -84,6 +85,8 @@ g_wheel_debug.enable = 1
 
 ## GM6020 直接电压
 
+示例配置：
+
 ```text
 g_wheel_debug.mode = 4
 g_wheel_debug.target_voltage_raw = 1000
@@ -94,6 +97,8 @@ g_wheel_debug.enable = 1
 首次测试应从较小值开始，并确认机构固定、电压限幅有效。
 
 ## VESC 速度
+
+示例配置
 
 ```text
 g_wheel_debug.mode = 5
@@ -138,5 +143,4 @@ GM目标RPM,位置P/I/D×100,速度P/I/D×100,
 CAN1状态,CAN1错误码,CAN1空闲邮箱数,ERPM上限
 ```
 
-角度仍按 0.01° 缩放。断开 GM6020 后应在约 20–25 ms 内看到在线位清零、
-目标电压归零；恢复反馈后必须重新设置 `enable=1`。
+角度仍按 0.01° 缩放。断开 GM6020 后应看到在线位清零、目标电压归零；恢复反馈后必须重新设置 `enable=1`。
