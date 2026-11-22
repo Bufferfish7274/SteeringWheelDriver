@@ -5,3 +5,4 @@ MDK-ARM/*.uvguix.*
 MDK-ARM/*.lst
 MDK-ARM/RTE/_SteeringWheelDriver_Debug/
 MDK-ARM/DebugConfig/*_Debug_*
+\.vscode
