@@ -1,31 +1,33 @@
-# 舵轮分控板驱动 3.0 设计说明
+# 舵轮分控板驱动 2.0 设计说明
 
 ## 文档信息
 
-| 项目 | 内容 |
-| --- | --- |
-| 版本 | 3.0 |
-| 日期 | 2026-11-06 |
-| 控制器 | STM32F405RGT6 |
-| 编译器 | Arm Compiler 6.22 |
-| 语言 | C++17（手写层）+ GNU C11（HAL/CubeMX） |
-| 适用范围 | 单舵轮、单 GM6020、单 VESC |
-| 配套文档 | [项目 README](../README.md)、[3.0 测试说明](../Tests/README.md)、[调试模式](DebugMode.md)、[模块文档](../Lib/Docs/README.md) |
+| 项目   | 内容                              |
+| ---- | ------------------------------- |
+| 版本   | 3.0                             |
+| 日期   | 2026-11-06                      |
+| 控制器  | STM32F405RGT6                   |
+| 编译器  | Arm Compiler 6.22               |
+| 语言   | C++17（手写层）+ GNU C11（HAL/CubeMX） |
+| 适用范围 | 单舵轮、单 GM6020、单 VESC             |
 
-3.0 将 2.0 的类型化配置和函数式分层重组为 C++17 核心，同时保持 CAN协议、安全逻辑、串口列序和 Keil Watch 调参路径不变。
+3.0 将 2.0 的类型化配置和函数式分层重组为 C++17 核心，同时保持其他部分逻辑不变。
 
-## 1. 设计目标
+# 版本构建思路
 
-实际上，2.0版本的代码组织风格已经接近C++。因此，3.0 的目标不是引入运行时多态或复杂 C++ 框架，而是让对象所有权、生命周期、配置注入和模块边界在编译期明确：
+实际上，2.0版本在思路上已经十分接近C++：每个模块有自己的结构体，结构体内包含了所有所需的变量。而且模块内部的变量和函数实际上有属于自己的访问范围。而且存在“结构体嵌套结构体”的现象。受制于C的语法，有些部分的封装只能是差强人意的。因此把驱动改为C++，每个模块为一个类，利用继承、多态、访问修饰符来提升代码效率和封装效果。
 
-1. 手写 App、驱动和算法全部使用 C++17；
-2. CubeMX `Core`、启动文件和 STM32 HAL 保持 C11；
-3. C 与 C++ 只通过 `WheelAppApi.h` 的 C ABI 交互；
-4. 不使用堆、STL 容器、异常、RTTI 类型识别或虚函数；
-5. 正式固件与调试固件继续通过 `WHEEL_BUILD_DEBUG` 单 Target 切换；
-6. Watch 保留 `g_app.gm6020.*`、`g_app.vesc.*` 和 `g_wheel_debug.*`。
+此外，还有三个问题需要解决：
+1. 模块的初始化配置依赖于`AppConfig.h`的宏，这就造成了我们不想看见的“底层需包含顶层”的现象，需要找一个办法破解这个依赖关系。
+2. HAL库是C语言，`main.c`是 `.c`文件，而驱动代码是C++，App层函数不能直接用到`main.c`里。
+3. 串口发送和LED也挤在App的各个函数之中，如果贸然设计成模块，其中有涉及App层的东西（模式切换）；而不分离会让代码的封装性变差。
 
-## 2. 系统结构
+针对这两个问题，所作的修改是：
+- 每个类里额外创建一个config结构体，把初始化函数改为使用结构体配置参数的形式。App层的初始化函数先根据`AppConfig.h`初始化结构体，然后再调用各模块的初始化函数。
+- 单独新建文件`WheelAppApi.c`作为API。它把C++函数套了个C语言的外壳，`main.c`只调用这里的C语言函数。
+- 把串口和LED独立成APP层的模块。
+
+# 系统结构
 
 ```text
 Core/Src/main.c（C）
@@ -47,10 +49,10 @@ WheelApp（C++ 生命周期与共享安全状态）
 BspCan → STM32 HAL（C）
 ```
 
-`main.c` 不再持有 `App_t`。全局单例 `g_app` 位于 C++ 实现中，所有 HAL
+由于C不能兼容C++，`main.c` 不再持有 `App_t`。全局单例 `g_app` 位于 C++ 实现中，所有 HAL
 回调和主循环均通过 `WheelApp_*` C ABI 调用。
 
-## 3. 模块职责
+# 模块职责
 
 | 模块                     | C++ 形态       | 主要职责                            |
 | ---------------------- | ------------ | ------------------------------- |
@@ -68,13 +70,9 @@ BspCan → STM32 HAL（C）
 | `Telemetry`            | 类            | 只读 CSV 组装和非阻塞 UART 发送           |
 | `StatusLeds`           | 类            | 只读状态到 LED 的映射                   |
 
-正式和调试控制器在编译期二选一。二者使用 `WheelApp` 中的同一批驱动、
-控制周期和位置斜坡对象，不创建调试状态副本。
-
-## 4. 编译配置
+# 编译配置
 
 Keil Target 使用与战队工程一致的 AC6 配置：
-
 - C：GNU11；
 - C++：C++17；
 - Optimization：`-O3`；
@@ -87,22 +85,17 @@ Keil Target 使用与战队工程一致的 AC6 配置：
 - 包含路径：`Core/Inc`、HAL/CMSIS、`Lib`、`App`。
 
 源代码约定：
-
 - 手写实现使用 `.cpp`，接口使用 `.hpp`；
 - CubeMX/HAL 继续使用 `.c/.h`；
 - 不在中断路径使用动态分配、阻塞调用或异常；
 - 硬件对象禁止复制，配置在 `init()` 中单次注入；
 - 全局运行对象依赖静态清零和显式 `init/reset()`，不依赖动态初始化。
 
-## 5. 配置与 Watch
+# 配置与 Watch
 
-`AppConfig.hpp` 是唯一生产参数来源，参数使用
-`steering::config::inline constexpr` 保存。`WheelApp` 在初始化时组装
-`Gm6020::Config`、`Vesc::Config`、`MasterCan::Config`、
-`SetpointRampConfig` 和 `WheelDebugConfig`，一次传给对应模块。
+`AppConfig.hpp` 是唯一生产参数来源，参数使用`steering::config::inline constexpr` 保存。`WheelApp` 在初始化时组装`Gm6020::Config`、`Vesc::Config`、`MasterCan::Config`、`SetpointRampConfig` 和 `WheelDebugConfig`，一次传给对应模块。
 
-驱动不包含 `AppConfig.hpp`，也不保留产品默认 PID、斜坡或超时。配置
-在启动外设前校验，非法值直接进入 `Error_Handler()`。
+驱动不包含 `AppConfig.hpp`，也不保留产品默认 PID、斜坡或超时。配置在启动外设前校验，非法值直接进入 `Error_Handler()`。
 
 为保留现有台架流程，以下 Watch 路径保持有效：
 
@@ -122,32 +115,7 @@ g_wheel_debug.mode
 g_wheel_debug.enable
 ```
 
-`g_app` 与 `g_wheel_debug` 均位于 `.bss`，Watch 修改的是实际运行对象，
-不是配置副本。修改不会写入 Flash，停机后仍需回填 `AppConfig.hpp`。
-
-## 6. 运行时协调
-
-| 事件 | 周期 | 执行内容 |
-| --- | --- | --- |
-| CAN RX | 帧到达 | 正式：主控解码；调试：反馈解码 |
-| TIM6 | 1 kHz | 在线判断、安全门控、控制器策略、PID 和 CAN 发送 |
-| LED | 10 ms | 在线、使能和调试心跳 |
-| UART | 20 ms | 50 Hz 非阻塞遥测 |
-| UART TX complete | 中断 | 释放下一次发送许可 |
-
-正式固件采用整轮安全条件：主控链路有效、已有控制目标、GM6020 在线、
-VESC 在线。任一条件失效时两个执行器失能，并清除待执行的新命令标志。
-恢复后必须收到新的主控控制帧。
-
-## 7. 测试
-
-全部主机测试使用：
-
-```text
-g++ -std=c++17 -Wall -Wextra -Werror -fno-exceptions -fno-rtti
-```
-
-### 7.1 主机测试矩阵
+#  主机测试
 
 | 测试 | 覆盖内容 |
 | --- | --- |
@@ -171,13 +139,4 @@ powershell -ExecutionPolicy Bypass -File .\Tests\AngleOpt\host\run.ps1
 powershell -ExecutionPolicy Bypass -File .\Tests\SetpointRamp\host\run.ps1
 ```
 
-### 7.2 台架验收
-
-主机测试不能替代真实电机验证。烧录前必须固定机构，并按调试文档完成：
-
-1. `DISABLED` 模式读取原始角并确认零位；
-2. 小角度位置阶跃确认角度方向和 `angle_sign`；
-3. 小电压测试确认 `voltage_sign` 和功率链路；
-4. 先速度环、后位置环调参；
-5. VESC 小 ERPM 测试；
-6. 正式固件联调主控链路、断线失能和恢复后新命令要求。
+即可进行测试
